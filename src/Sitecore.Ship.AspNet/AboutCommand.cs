@@ -4,6 +4,8 @@ using System.Web;
 
 namespace Sitecore.Ship.AspNet
 {
+    using System.Net;
+
     public class AboutCommand : CommandHandler
     {
         public override void HandleRequest(HttpContextBase context)
@@ -25,7 +27,7 @@ namespace Sitecore.Ship.AspNet
 
         private static bool CanHandle(HttpContextBase context)
         {
-            return context.Request.Url != null &&  context.Request.Url.PathAndQuery.EndsWith("/services/about", StringComparison.InvariantCultureIgnoreCase);
+            return context.Request.Url != null && context.Request.Url.PathAndQuery.EndsWith("/services/about", StringComparison.InvariantCultureIgnoreCase) && context.Response.StatusCode != (int)HttpStatusCode.Unauthorized; ;
         }
     }
 }
