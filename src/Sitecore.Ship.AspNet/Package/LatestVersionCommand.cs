@@ -59,7 +59,7 @@ namespace Sitecore.Ship.AspNet.Package
         private static bool CanHandle(HttpContextBase context)
         {
             return context.Request.Url != null &&
-                   context.Request.Url.PathAndQuery.EndsWith(ShipServiceUrl.PackageLatestVersion, StringComparison.InvariantCultureIgnoreCase);
+                   context.Request.Url.PathAndQuery.EndsWith(ShipServiceUrl.PackageLatestVersion, StringComparison.InvariantCultureIgnoreCase) && context.Response.StatusCode != (int)HttpStatusCode.Unauthorized; ;
         }
     }
 }

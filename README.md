@@ -1,5 +1,7 @@
 # Sitecore.Ship
 
+[![Join the chat at https://gitter.im/kevinobee/Sitecore.Ship](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/kevinobee/Sitecore.Ship?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Sitecore.Ship is a lightweight means to install Sitecore Update packages via HTTP requests.
 
 
@@ -21,7 +23,9 @@ The latest release versions of the Sitecore.Ship packages can be found on the Nu
 
 ### Installing the Package
 
-Ensure that the website project is set to run with .NET Framework 4.0
+Ensure that the website project is set to run with .NET Framework 4.5
+
+Ensure that the web.config file for the target project if already existing is included into your project.
 
 Run the following powershell command in the package manager console of the Visual Studio solution for the target website:
 
@@ -33,7 +37,7 @@ Installing the package will do the following:
 
 * Add a new `packageInstallation` section to your `web.config` file. You can set configuration options in this section to enable remote access to the installer and to enable the package streaming functionality. These options are safe by default, that is, no remote access and package streaming disabled. **Note:** the configuration settings are ignored in this branch of Sitecore.Ship.
 
-* Register a single new HTTP handler section in `<system.web>` and `<system.webserver>`
+* Register a single new HTTP handler section in `<system.webserver>`. Support for classic mode in IIS has been removed.
 
 * Add a `ship.config` Sitecore include file to the `App_Config\include` folder.
 
@@ -79,7 +83,7 @@ The body of a successfull request will contain details of the package contents i
      {"Entries":[{"ID":"110d559f-dea5-42ea-9c1c-8a5df7e70ef9","Path":"addeditems/master/sitecore/content/home"}]}
 
 The request also takes an optional `DisableIndexing` parameter in the x-www-form-urlencoded form-data which defaults to *false*. When the parameter is set to *true* updating of search indexes during the package installation will be suspended. Disabling the search index updates will increase the speed at which packages are installed into the CMS. You can read more about this approach on Alex Shyba's 
-[blog](http://sitecoreblog.alexshyba.com/2010/04/sitecore-installation-wizard-disable.html "Sitecore Installation Wizard – disable search index update during install")
+[blog](http://sitecoreblog.alexshyba.com/2010/04/sitecore-installation-wizard-disable.html "Sitecore Installation Wizard ï¿½ disable search index update during install")
  
 
 
