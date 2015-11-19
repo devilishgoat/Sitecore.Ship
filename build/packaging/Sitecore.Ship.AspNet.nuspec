@@ -14,12 +14,9 @@
     <language>en-GB</language>
   </metadata>
   <files>
-    <file src="..\..\artifacts\Build\Sitecore.Ship.AspNet.dll" target="lib\net40" />
-    <file src="..\..\artifacts\Build\Sitecore.Ship.AspNet.pdb" target="lib\net40" />
-    <file src="..\..\artifacts\Build\Sitecore.Ship.Core.dll" target="lib\net40" />
-    <file src="..\..\artifacts\Build\Sitecore.Ship.Core.pdb" target="lib\net40" />
-    <file src="..\..\artifacts\Build\Sitecore.Ship.Infrastructure.dll" target="lib\net40" />
-    <file src="..\..\artifacts\Build\Sitecore.Ship.Infrastructure.pdb" target="lib\net40" />
+    <file src="..\..\src\Sitecore.Ship.AspNet\bin\Release\Sitecore.Ship.AspNet.dll" target="lib\net40" />
+    <file src="..\..\src\Sitecore.Ship.Core\bin\Release\Sitecore.Ship.Core.dll" target="lib\net40" />
+    <file src="..\..\src\Sitecore.Ship.Infrastructure\bin\Release\Sitecore.Ship.Infrastructure.dll" target="lib\net40" />
     
     <file src="..\..\src\Sitecore.Ship.AspNet\content\**\*" target="content" />
   </files>
