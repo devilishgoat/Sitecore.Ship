@@ -79,7 +79,7 @@ namespace Sitecore.Ship.AspNet.Publish
 		{
 			return context.Request.Url != null &&
 				   IsPublishModeUrl(context.Request.Url.PathAndQuery.ToLowerInvariant()) &&
-				   context.Request.HttpMethod == "POST";
+                   context.Request.HttpMethod == "POST" && context.Response.StatusCode != (int)HttpStatusCode.Unauthorized; ;
 		}
 
 		private static bool IsPublishModeUrl(string urlPath)
