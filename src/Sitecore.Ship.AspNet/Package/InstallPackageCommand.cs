@@ -68,7 +68,21 @@ namespace Sitecore.Ship.AspNet.Package
 
         private static InstallPackage GetRequest(HttpRequestBase request)
         {
-            return new InstallPackage { Path = request.Form["path"] };
+            return new InstallPackage
+                       {
+                           Path = request.Form["path"],
+                           DisableIndexing = ParseBoolean(request.Form["DisableIndexing"]),
+                           EnableSecurityInstall = ParseBoolean(request.Form["EnableSecurityInstall"])
+                       };
+        }
+
+        private static bool ParseBoolean(string request)
+        {
+            bool result;
+
+            Boolean.TryParse(request, out result);
+
+            return result;
         }
     }
 }

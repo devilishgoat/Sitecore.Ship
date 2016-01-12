@@ -84,6 +84,8 @@ The body of a successfull request will contain details of the package contents i
 
 The request also takes an optional `DisableIndexing` parameter in the x-www-form-urlencoded form-data which defaults to *false*. When the parameter is set to *true* updating of search indexes during the package installation will be suspended. Disabling the search index updates will increase the speed at which packages are installed into the CMS. You can read more about this approach on Alex Shyba's 
 [blog](http://sitecoreblog.alexshyba.com/2010/04/sitecore-installation-wizard-disable.html "Sitecore Installation Wizard � disable search index update during install")
+
+The request also takes an optional `EnableSecurityInstall` parameter in the x-www-form-urlencoded form-data which defaults to *false*. When the parameter is set to *true* a security installation will be performend if applicable
  
 
 
