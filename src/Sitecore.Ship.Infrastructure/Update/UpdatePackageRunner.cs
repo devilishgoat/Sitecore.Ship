@@ -27,7 +27,7 @@ namespace Sitecore.Ship.Infrastructure.Update
             _manifestRepository = manifestRepository;
         }
 
-        public PackageManifest Execute(string packagePath, bool disableIndexing)
+        public PackageManifest Execute(string packagePath, bool disableIndexing, bool enableSecurityInstall)
         {
             if (!File.Exists(packagePath)) throw new NotFoundException();
 
@@ -58,6 +58,11 @@ namespace Sitecore.Ship.Infrastructure.Update
                         DiffInstaller diffInstaller = new DiffInstaller(UpgradeAction.Upgrade);
                         using (new SecurityDisabler())
                         {
+                            if (enableSecurityInstall)
+                            {
+                                diffInstaller.InstallSecurity(packagePath);
+                            }
+                            
                             diffInstaller.ExecutePostInstallationInstructions(packagePath, historyPath, installationInfo.Mode, metadata, logger, ref entries);
                         }
                     }

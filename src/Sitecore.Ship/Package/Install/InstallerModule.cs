@@ -77,7 +77,8 @@ namespace Sitecore.Ship.Package.Install
                     var package = new InstallPackage
                                       {
                                           Path = _tempPackager.GetPackageToInstall(file.Value), 
-                                          DisableIndexing = uploadPackage.DisableIndexing
+                                          DisableIndexing = uploadPackage.DisableIndexing,
+                                          EnableSecurityInstall = uploadPackage.EnableSecurityInstall
                                       };
                     manifest = _repository.AddPackage(package);
                     _installationRecorder.RecordInstall(uploadPackage.PackageId, uploadPackage.Description, DateTime.Now);
