@@ -7,6 +7,7 @@ using Sitecore.Ship.Core;
 using Sitecore.Ship.Core.Contracts;
 using Sitecore.Ship.Core.Domain;
 using Sitecore.Ship.Core.Services;
+using Sitecore.Ship.Infrastructure;
 using Sitecore.Ship.Infrastructure.Configuration;
 using Sitecore.Ship.Infrastructure.DataAccess;
 using Sitecore.Ship.Infrastructure.IO;
@@ -21,18 +22,21 @@ namespace Sitecore.Ship.AspNet.Package
         private readonly IPackageRepository _repository;
         private readonly ITempPackager _tempPackager;
         private readonly IInstallationRecorder _installationRecorder;
+        private readonly IPublishService _publishService;
 
-        public InstallUploadPackageCommand(IPackageRepository repository, ITempPackager tempPackager, IInstallationRecorder installationRecorder)
+        public InstallUploadPackageCommand(IPackageRepository repository, ITempPackager tempPackager, IInstallationRecorder installationRecorder, IPublishService publishService)
         {
             _repository = repository;
             _tempPackager = tempPackager;
             _installationRecorder = installationRecorder;
+            _publishService = publishService;
         }
 
         public InstallUploadPackageCommand()
             : this(new PackageRepository(new UpdatePackageRunner(new PackageManifestReader())), 
                    new TempPackager(new ServerTempFile()), 
-                   new InstallationRecorder(new PackageHistoryRepository(), new PackageInstallationConfigurationProvider().Settings))
+                   new InstallationRecorder(new PackageHistoryRepository(), new PackageInstallationConfigurationProvider().Settings),
+                   new PublishService())
         {           
         }
 
@@ -63,6 +67,14 @@ namespace Sitecore.Ship.AspNet.Package
                     finally
                     {
                         _tempPackager.Dispose();
+                    }
+
+                    foreach (var entry in manifest.Entries)
+                    {
+                        if (entry.ID.HasValue)
+                        {
+                            _publishService.AddToPublishQueue(entry.ID.Value);
+                        }
                     }
 
                     var json = Json.Encode(new { manifest.Entries });

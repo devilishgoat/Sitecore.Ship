@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Sitecore.Data;
+using Sitecore.Data.Items;
 using Sitecore.Data.Managers;
 using Sitecore.Diagnostics;
 using Sitecore.Globalization;
@@ -25,6 +26,12 @@ namespace Sitecore.Ship.Infrastructure
 					{ "incremental",    Publishing.PublishManager.PublishIncremental }
 				};
 		}
+
+        public void AddToPublishQueue(Guid itemId)
+        {
+            var master = Sitecore.Configuration.Factory.GetDatabase("master");
+            Sitecore.Publishing.PublishManager.AddToPublishQueue(master, new ID(itemId), ItemUpdateType.Saved, DateTime.UtcNow);
+        }
 
 		public void Run(ItemsToPublish itemsToPublish)
 		{
