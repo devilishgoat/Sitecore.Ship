@@ -136,6 +136,7 @@
     <Reference Include="System.configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Web" />
+    <Reference Include="System.Web.ApplicationServices" />
     <Reference Include="System.Web.Mvc, Version=5.2.3.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\..\packages\ASOS.Content.Sitecore.Binaries.8.1.160519.11\lib\net45\System.Web.Mvc.dll</HintPath>
       <Private>True</Private>
@@ -160,6 +161,8 @@
     <Compile Include="Diagnostics\Logger.cs" />
     <Compile Include="Install\PackageManifestReader.cs" />
     <Compile Include="IO\TempPackager.cs" />
+    <Compile Include="Update\AccountInstaller.cs" />
+    <Compile Include="Update\ShipInstaller.cs" />
     <Compile Include="Web\HttpRequestChecker.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PublishService.cs" />

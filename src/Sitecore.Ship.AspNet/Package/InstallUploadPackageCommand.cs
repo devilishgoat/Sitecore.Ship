@@ -58,7 +58,12 @@ namespace Sitecore.Ship.AspNet.Package
                     PackageManifest manifest;
                     try
                     {
-                        var package = new InstallPackage { Path = _tempPackager.GetPackageToInstall(file.InputStream) };
+                        var package = new InstallPackage
+                        {
+                            Path = _tempPackager.GetPackageToInstall(file.InputStream),
+                            DisableIndexing = uploadPackage.DisableIndexing,
+                            EnableSecurityInstall = uploadPackage.EnableSecurityInstall
+                        };
                         manifest = _repository.AddPackage(package);
 
                         _installationRecorder.RecordInstall(uploadPackage.PackageId, uploadPackage.Description, DateTime.Now);
@@ -106,8 +111,19 @@ namespace Sitecore.Ship.AspNet.Package
             return new InstallUploadPackage
                 {
                     PackageId = request.Form["packageId"],
-                    Description = request.Form["description"]
+                    Description = request.Form["description"],
+                    DisableIndexing = ParseBoolean(request.Form["DisableIndexing"]),
+                    EnableSecurityInstall = ParseBoolean(request.Form["EnableSecurityInstall"])
                 };
+        }
+
+        private static bool ParseBoolean(string request)
+        {
+            bool result;
+
+            Boolean.TryParse(request, out result);
+
+            return result;
         }
     }
 }
