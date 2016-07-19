@@ -55,7 +55,7 @@ namespace Sitecore.Ship.Infrastructure.Update
 
                     if (string.IsNullOrEmpty(error))
                     {
-                        DiffInstaller diffInstaller = new DiffInstaller(UpgradeAction.Upgrade);
+                        ShipInstaller diffInstaller = new ShipInstaller(UpgradeAction.Upgrade);
                         using (new SecurityDisabler())
                         {
                             if (enableSecurityInstall)
