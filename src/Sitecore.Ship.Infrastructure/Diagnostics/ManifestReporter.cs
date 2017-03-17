@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
 using Sitecore.ContentSearch.Utilities;
+using Sitecore.Data;
 using Sitecore.Ship.Core.Contracts;
 
 namespace Sitecore.Ship.Infrastructure.Diagnostics
@@ -44,42 +45,90 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             // Pull out the manifest items
             var allManifestItems = rootNode.ChildNodes.Cast<XmlNode>().Where(item => item.Name == "DeployedItem");
 
-           // var scDataBase = Sitecore.Data.Database.GetDatabase("core");
-          //  scDataBase.getite
-
             logger.Info("----- CORE -----");
             var itemsList = allManifestItems.Where(item => item.Attributes["Database"].Value == "core");
-            ReportManifestList(itemsList, canDeleteItems);
+            ReportManifestList(itemsList, canDeleteItems, Sitecore.Data.Database.GetDatabase("core"));
 
             logger.Info("----- MASTER -----");
             itemsList = allManifestItems.Where(item => item.Attributes["Database"].Value == "master");
-            ReportManifestList(itemsList, canDeleteItems);
+            ReportManifestList(itemsList, canDeleteItems, Sitecore.Data.Database.GetDatabase("master"));
 
             logger.Info("----- WEB -----");
             itemsList = allManifestItems.Where(item => item.Attributes["Database"].Value == "web");
-            ReportManifestList(itemsList, canDeleteItems);
+            ReportManifestList(itemsList, canDeleteItems, Sitecore.Data.Database.GetDatabase("web"));
 
             logger.Info("***************** End manifest ****************");
         }
 
         
 
-        private void ReportManifestList(IEnumerable<XmlNode> manifestItems, bool canDeleteItems)
+        private void ReportManifestList(IEnumerable<XmlNode> manifestItems, bool canDeleteItems, Sitecore.Data.Database scDataBase)
         {
+            var parsingList = manifestItems.ToList(); // clone the list in case we need to parse it recursivly.
+
             manifestItems.ForEach(manifestItem =>
             {
-                var canDeleteChildren = canDeleteItems && ItemCanDeleteChildren(manifestItem);
-                var name = manifestItem.Attributes["Name"].Value;
-                if (name.EndsWith(".item")) name = name.Substring(0, name.Length - 5);
+                string name, idString, updateMode;
+                bool parseChildren = false;
 
-                string reportText = "[";
-                reportText += "ADD/UPDATE";
-                if (canDeleteChildren) reportText += "/SYNCCHILDREN";
-                reportText += "] " + manifestItem.Attributes["Name"].Value + " " + manifestItem.Attributes["Id"].Value;
+                var canDeleteChildren = canDeleteItems && ItemCanDeleteChildren(manifestItem);
+                idString = manifestItem.Attributes["Id"].Value;
+
+                // check to see if we are adding or updating
+                var scItem = scDataBase.GetItem(new ID(idString));
+                if (scItem == null)
+                {
+                    name = manifestItem.Attributes["Name"].Value;
+                    if (name.EndsWith(".item")) name = name.Substring(0, name.Length - 5);
+
+                    scItem = scDataBase.GetItem(new ID(manifestItem.Attributes["Parent"].Value));
+                    if (scItem != null) name = scItem.Paths.Path + "/" + name;
+                   
+                    updateMode = "ADD";
+                    scItem = null;
+                }
+                else
+                {
+                    name = scItem.Paths.FullPath;
+                    updateMode = "UPDATE";
+                    if (canDeleteChildren) parseChildren = true;
+                }
+
+                string reportText = "[" + updateMode +"] " + name + " " + idString;
                 logger.Info(reportText);
+
+                if (parseChildren && scItem!=null) ReportChildTreeDeletions(scItem, parsingList, scDataBase);
             });
         }
 
+        private void ReportChildTreeDeletions(Data.Items.Item parentItem, List<XmlNode> manifestItems, Sitecore.Data.Database scDataBase)
+        {
+            var items = parentItem.GetChildren();
+            items.ForEach(item =>
+            {
+                if (!manifestItems.Any(manifestItem => manifestItem.Attributes["Id"].Value == item.ID.Guid.ToString()))
+                {
+                    logger.Info("[DELETE] " + item.Paths.FullPath + " " + item.ID.Guid.ToString());
+                    // report all decendants as deleted, as we know these are not kept.
+                    ReportChildTreeDeletionsAsDeleted(item, manifestItems, scDataBase);
+                }
+                else
+                {
+                    // check any child nodes recursivly.
+                    ReportChildTreeDeletions(item, manifestItems, scDataBase);
+                }
+            });
+        }
+
+        private void ReportChildTreeDeletionsAsDeleted(Data.Items.Item parentItem, List<XmlNode> manifestItems, Sitecore.Data.Database scDataBase)
+        {
+            var items = parentItem.GetChildren();
+            items.ForEach(item =>
+            {
+                logger.Info("[DELETE] " + item.Name + " " + item.ID.Guid.ToString());
+                ReportChildTreeDeletionsAsDeleted(item, manifestItems, scDataBase);
+            });
+        }
 
         /// <summary>
         /// Checks for the specific attribute value to establish if the update is allowed to delete items from sitecore

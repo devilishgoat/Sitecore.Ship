@@ -32,9 +32,6 @@ namespace Sitecore.Ship.Infrastructure.Update
         {
             if (!File.Exists(packagePath)) throw new NotFoundException();
 
-            
-
-
             using (new ShutdownGuard())
             {
                 if (disableIndexing)
