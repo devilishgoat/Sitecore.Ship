@@ -7,6 +7,7 @@ using Sitecore.SecurityModel;
 using Sitecore.Ship.Core;
 using Sitecore.Ship.Core.Contracts;
 using Sitecore.Ship.Core.Domain;
+using Sitecore.Ship.Infrastructure.Diagnostics;
 using Sitecore.Update;
 using Sitecore.Update.Installer;
 using Sitecore.Update.Installer.Exceptions;
@@ -31,6 +32,9 @@ namespace Sitecore.Ship.Infrastructure.Update
         {
             if (!File.Exists(packagePath)) throw new NotFoundException();
 
+            
+
+
             using (new ShutdownGuard())
             {
                 if (disableIndexing)
@@ -43,6 +47,12 @@ namespace Sitecore.Ship.Infrastructure.Update
                 List<ContingencyEntry> entries = null;
 
                 var logger = Sitecore.Diagnostics.LoggerFactory.GetLogger(this); // TODO abstractions
+
+
+                var manifestReporter = new ManifestReporter(logger);
+                manifestReporter.ReportPackage(packagePath);
+
+
                 try
                 {
                     entries = UpdateHelper.Install(installationInfo, logger, out historyPath);

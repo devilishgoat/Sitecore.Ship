@@ -162,6 +162,7 @@
     <Compile Include="Configuration\PackageInstallationConfigurationProvider.cs" />
     <Compile Include="DataAccess\PackageHistoryRepository.cs" />
     <Compile Include="Diagnostics\Logger.cs" />
+    <Compile Include="Diagnostics\ManifestReporter.cs" />
     <Compile Include="Install\PackageManifestReader.cs" />
     <Compile Include="IO\TempPackager.cs" />
     <Compile Include="Update\AccountInstaller.cs" />
