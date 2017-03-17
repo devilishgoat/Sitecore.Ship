@@ -82,7 +82,7 @@ namespace Sitecore.Ship.AspNet.Package
                         }
                     }
 
-                    var json = Json.Encode(new { manifest.Entries });
+                    var json = Json.Encode(new { manifest.ManifestReport });
 
                     JsonResponse(json, HttpStatusCode.Created, context);
 

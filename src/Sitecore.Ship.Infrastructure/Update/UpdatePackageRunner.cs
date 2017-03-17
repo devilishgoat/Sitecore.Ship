@@ -47,7 +47,7 @@ namespace Sitecore.Ship.Infrastructure.Update
 
 
                 var manifestReporter = new ManifestReporter(logger);
-                manifestReporter.ReportPackage(packagePath);
+                var manifestReport = manifestReporter.ReportPackage(packagePath);
 
 
                 try
@@ -81,8 +81,9 @@ namespace Sitecore.Ship.Infrastructure.Update
 
                     logger.Info("Executing post installation actions finished.");
 
-                    return _manifestRepository.GetManifest(packagePath);
-
+                    var manifest = _manifestRepository.GetManifest(packagePath);
+                    manifest.ManifestReport = manifestReport;
+                    return manifest;
                 }
                 catch (PostStepInstallerException exception)
                 {

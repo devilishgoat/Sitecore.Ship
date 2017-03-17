@@ -78,6 +78,9 @@
     <Compile Include="PackageRepository.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Domain\PublishParameters.cs" />
+    <Compile Include="Reporting\ManifestReportDataBase.cs" />
+    <Compile Include="Reporting\ManifestReport.cs" />
+    <Compile Include="Reporting\ManifestReportItem.cs" />
     <Compile Include="Services\InstallationRecorder.cs" />
     <Compile Include="Services\ZipEntryDataParser.cs" />
     <Compile Include="StringExtensions.cs" />

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Sitecore.Ship.Core.Reporting;
 
 namespace Sitecore.Ship.Core.Domain
 {
@@ -10,5 +11,7 @@ namespace Sitecore.Ship.Core.Domain
         }
         
         public List<PackageManifestEntry> Entries { get; private set; } 
+
+        public ManifestReport ManifestReport { get; set; }
     }
 }

@@ -5,9 +5,12 @@ using System.Xml;
 using Sitecore.ContentSearch.Utilities;
 using Sitecore.Data;
 using Sitecore.Ship.Core.Contracts;
+using Sitecore.Ship.Core.Reporting;
 
 namespace Sitecore.Ship.Infrastructure.Diagnostics
 {
+    
+
     public class ManifestReporter
     {
         private readonly log4net.ILog logger;
@@ -17,14 +20,19 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             this.logger = logger;
         }
 
-        public void ReportPackage(string packageFilePath)
+        public ManifestReport ReportPackage(string packageFilePath)
         {
-            // get the manifest file path (extracting it from update or zip)
-            string manifestPath = ExtractManifestFile(packageFilePath);
-            if (manifestPath == null) return;
+            var manifestReport = new ManifestReport()
+            {
+                Databases = new List<ManifestReportDataBase>()
+            };
 
-            var manifestFile = LoadManifestFile(manifestPath);
-            if (manifestFile == null) return;
+            // get the manifest file path (extracting it from update or zip)
+            string manifestPath = ExtractManifestFile(packageFilePath, manifestReport);
+            if (manifestPath == null) return manifestReport;
+
+            var manifestFile = LoadManifestFile(manifestPath, manifestReport);
+            if (manifestFile == null) return manifestReport;
 
             try
             { // clean
@@ -34,12 +42,13 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             {
             }
 
+
             logger.Info("***************** Begin manifest ****************");
 
             var rootNode = manifestFile.ChildNodes.Cast<XmlNode>().FirstOrDefault(item => item.Name == "DeployedItems");
 
-            var canDeleteItems = UpdateCanDeleteItems(rootNode);
-            if (canDeleteItems) logger.Info("Update can delete items");
+            manifestReport.CanDeleteItems = UpdateCanDeleteItems(rootNode);
+            if (manifestReport.CanDeleteItems) logger.Info("Update can delete items");
             else logger.Info("Update cannot delete items");
 
             // Pull out the manifest items
@@ -47,86 +56,114 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
 
             logger.Info("----- CORE -----");
             var itemsList = allManifestItems.Where(item => item.Attributes["Database"].Value == "core");
-            ReportManifestList(itemsList, canDeleteItems, Sitecore.Data.Database.GetDatabase("core"));
+            var reportDb = ReportManifestList(itemsList, manifestReport.CanDeleteItems, Sitecore.Data.Database.GetDatabase("core"));
+            manifestReport.Databases.Add(reportDb);
 
             logger.Info("----- MASTER -----");
             itemsList = allManifestItems.Where(item => item.Attributes["Database"].Value == "master");
-            ReportManifestList(itemsList, canDeleteItems, Sitecore.Data.Database.GetDatabase("master"));
+            reportDb = ReportManifestList(itemsList, manifestReport.CanDeleteItems, Sitecore.Data.Database.GetDatabase("master"));
+            manifestReport.Databases.Add(reportDb);
 
             logger.Info("----- WEB -----");
             itemsList = allManifestItems.Where(item => item.Attributes["Database"].Value == "web");
-            ReportManifestList(itemsList, canDeleteItems, Sitecore.Data.Database.GetDatabase("web"));
+            reportDb = ReportManifestList(itemsList, manifestReport.CanDeleteItems, Sitecore.Data.Database.GetDatabase("web"));
+            manifestReport.Databases.Add(reportDb);
 
             logger.Info("***************** End manifest ****************");
+
+            return manifestReport;
         }
 
         
 
-        private void ReportManifestList(IEnumerable<XmlNode> manifestItems, bool canDeleteItems, Sitecore.Data.Database scDataBase)
+        private ManifestReportDataBase ReportManifestList(IEnumerable<XmlNode> manifestItems, bool canDeleteItems, Sitecore.Data.Database scDataBase)
         {
+            var manifestReportDatabase = new ManifestReportDataBase()
+            {
+                Database = scDataBase.Name,
+                Items = new List<ManifestReportItem>()
+            };
             var parsingList = manifestItems.ToList(); // clone the list in case we need to parse it recursivly.
 
             manifestItems.ForEach(manifestItem =>
             {
-                string name, idString, updateMode;
+                var manifestReportItem = new ManifestReportItem();
                 bool parseChildren = false;
 
                 var canDeleteChildren = canDeleteItems && ItemCanDeleteChildren(manifestItem);
-                idString = manifestItem.Attributes["Id"].Value;
+                manifestReportItem.Id = manifestItem.Attributes["Id"].Value;
 
                 // check to see if we are adding or updating
-                var scItem = scDataBase.GetItem(new ID(idString));
+                var scItem = scDataBase.GetItem(new ID(manifestReportItem.Id));
                 if (scItem == null)
                 {
-                    name = manifestItem.Attributes["Name"].Value;
-                    if (name.EndsWith(".item")) name = name.Substring(0, name.Length - 5);
+
+                    manifestReportItem.FullPath = manifestItem.Attributes["Name"].Value;
+                    if (manifestReportItem.FullPath.EndsWith(".item")) manifestReportItem.FullPath = manifestReportItem.FullPath.Substring(0, manifestReportItem.FullPath.Length - 5);
 
                     scItem = scDataBase.GetItem(new ID(manifestItem.Attributes["Parent"].Value));
-                    if (scItem != null) name = scItem.Paths.Path + "/" + name;
-                   
-                    updateMode = "ADD";
+                    if (scItem != null) manifestReportItem.FullPath = scItem.Paths.Path + "/" + manifestReportItem.FullPath;
+
+                    manifestReportItem.UpdateType = "ADD";
                     scItem = null;
                 }
                 else
                 {
-                    name = scItem.Paths.FullPath;
-                    updateMode = "UPDATE";
+                    manifestReportItem.FullPath = scItem.Paths.FullPath;
+                    manifestReportItem.UpdateType = "UPD";
                     if (canDeleteChildren) parseChildren = true;
                 }
+            
+                logger.Info(manifestReportItem.ToString());
+                manifestReportDatabase.Items.Add(manifestReportItem);
 
-                string reportText = "[" + updateMode +"] " + name + " " + idString;
-                logger.Info(reportText);
-
-                if (parseChildren && scItem!=null) ReportChildTreeDeletions(scItem, parsingList, scDataBase);
+                if (parseChildren && scItem!=null) ReportChildTreeDeletions(scItem, parsingList, scDataBase, manifestReportDatabase);
             });
+
+            manifestReportDatabase.Items = manifestReportDatabase.Items.OrderBy(i => i.FullPath).ToList();
+            return manifestReportDatabase;
         }
 
-        private void ReportChildTreeDeletions(Data.Items.Item parentItem, List<XmlNode> manifestItems, Sitecore.Data.Database scDataBase)
+        private void ReportChildTreeDeletions(Data.Items.Item parentItem, List<XmlNode> manifestItems, Sitecore.Data.Database scDataBase, ManifestReportDataBase manifestReportDatabase)
         {
             var items = parentItem.GetChildren();
             items.ForEach(item =>
             {
                 if (!manifestItems.Any(manifestItem => manifestItem.Attributes["Id"].Value == item.ID.Guid.ToString()))
                 {
+                    manifestReportDatabase.Items.Add(new ManifestReportItem()
+                    {
+                        FullPath = item.Paths.FullPath,
+                        Id = item.ID.Guid.ToString(),
+                        UpdateType = "DEL"
+                    });
+
                     logger.Info("[DELETE] " + item.Paths.FullPath + " " + item.ID.Guid.ToString());
                     // report all decendants as deleted, as we know these are not kept.
-                    ReportChildTreeDeletionsAsDeleted(item, manifestItems, scDataBase);
+                    ReportChildTreeDeletionsAsDeleted(item, manifestItems, scDataBase, manifestReportDatabase);
                 }
                 else
                 {
                     // check any child nodes recursivly.
-                    ReportChildTreeDeletions(item, manifestItems, scDataBase);
+                    ReportChildTreeDeletions(item, manifestItems, scDataBase, manifestReportDatabase);
                 }
             });
         }
 
-        private void ReportChildTreeDeletionsAsDeleted(Data.Items.Item parentItem, List<XmlNode> manifestItems, Sitecore.Data.Database scDataBase)
+        private void ReportChildTreeDeletionsAsDeleted(Data.Items.Item parentItem, List<XmlNode> manifestItems, Sitecore.Data.Database scDataBase, ManifestReportDataBase manifestReportDatabase)
         {
             var items = parentItem.GetChildren();
             items.ForEach(item =>
             {
+                manifestReportDatabase.Items.Add(new ManifestReportItem()
+                {
+                    FullPath = item.Paths.FullPath,
+                    Id = item.ID.Guid.ToString(),
+                    UpdateType = "DEL"
+                });
+
                 logger.Info("[DELETE] " + item.Name + " " + item.ID.Guid.ToString());
-                ReportChildTreeDeletionsAsDeleted(item, manifestItems, scDataBase);
+                ReportChildTreeDeletionsAsDeleted(item, manifestItems, scDataBase, manifestReportDatabase);
             });
         }
 
@@ -153,14 +190,14 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             return false;
         }
 
-        private bool UnzipTargetFile(string zipSource, string fileToUnzip, string pathToUnzipTo)
+        private bool UnzipTargetFile(string zipSource, string fileToUnzip, string pathToUnzipTo, ManifestReport manifestReport)
         {
             using (var reader = new Zip.ZipReader(zipSource))
             {
                 var targetFile = reader.Entries.FirstOrDefault(entry => entry.Name == fileToUnzip);
                 if (targetFile == null)
-                {
-                    logger.Warn("Could not report on deployment as ship cannot find file (" + fileToUnzip + ") in package at " + zipSource);
+                {                    
+                    logger.Warn(manifestReport.SetError("Could not report on deployment as ship cannot find file (" + fileToUnzip + ") in package at " + zipSource).Error);
                     return false;
                 }
 
@@ -182,11 +219,11 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             return true;
         }
 
-        private string ExtractManifestFile(string packageFilePath)
+        private string ExtractManifestFile(string packageFilePath, ManifestReport manifestReport)
         {
             if (!System.IO.File.Exists(packageFilePath))
             {
-                logger.Warn("Could not report on deployment as ship cannot find pacakge file at " + packageFilePath);
+                logger.Warn(manifestReport.SetError("Could not report on deployment as ship cannot find pacakge file at " + packageFilePath).Error);
                 return null;
             }
 
@@ -196,16 +233,18 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             if (packageFilePath.Trim().ToLower().EndsWith(".update"))
             {
                 extractedTempPackagePath = System.IO.Path.GetTempPath() + "\\package." + guid + ".zip";
-                if (!UnzipTargetFile(packageFilePath, "package.zip", extractedTempPackagePath))
+                if (!UnzipTargetFile(packageFilePath, "package.zip", extractedTempPackagePath, manifestReport))
                 {
+                    logger.Warn(manifestReport.SetError("Could not report on deployment as ship cannot find package zip in the update file at " + packageFilePath).Error);
                     return null;
                 }
                 packageFilePath = extractedTempPackagePath;
             }
 
             var targetPath = System.IO.Path.GetTempPath() + "\\DeployedItems." + guid + ".xml";
-            if (!UnzipTargetFile(packageFilePath, "addedfiles/_DEV/DeployedItems.xml", targetPath))
+            if (!UnzipTargetFile(packageFilePath, "addedfiles/_DEV/DeployedItems.xml", targetPath, manifestReport))
             {
+                logger.Warn(manifestReport.SetError("Could not report on deployment as ship cannot find the manifest file in " + packageFilePath).Error);
                 return null;
             }
 
@@ -224,11 +263,11 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             return targetPath;
         }
 
-        private XmlDocument LoadManifestFile(string manifestFilePath)
+        private XmlDocument LoadManifestFile(string manifestFilePath, ManifestReport manifestReport)
         {
             if (!System.IO.File.Exists(manifestFilePath))
             {
-                logger.Warn("Could not report on deployment as ship cannot find manifest file at " + manifestFilePath);
+                logger.Warn(manifestReport.SetError("Could not report on deployment as ship cannot find manifest file at " + manifestFilePath).Error);
                 return null;
             }
 
@@ -237,7 +276,7 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
 
             if (manifestFile.ChildNodes.Count == 0)
             {
-                logger.Warn("Ship's manifest file appears to be blank at " + manifestFilePath);
+                logger.Warn(manifestReport.SetError("Ship's manifest file appears to be blank at " + manifestFilePath).Error);
                 return null;
             }
 
