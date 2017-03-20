@@ -44,13 +44,15 @@ namespace Sitecore.Ship.AspNet.Package
                 {
                     var package = GetRequest(context.Request);
                     var manifest = _repository.AddPackage(package);
-                    _installationRecorder.RecordInstall(package.Path, DateTime.Now);
-
-                    foreach (var entry in manifest.Entries)
+                    if (!package.AnalyzeOnly)
                     {
-                        if (entry.ID.HasValue)
+                        _installationRecorder.RecordInstall(package.Path, DateTime.Now);
+                        foreach (var entry in manifest.Entries)
                         {
-                            _publishService.AddToPublishQueue(entry.ID.Value);
+                            if (entry.ID.HasValue)
+                            {
+                                _publishService.AddToPublishQueue(entry.ID.Value);
+                            }
                         }
                     }
 
@@ -75,17 +77,18 @@ namespace Sitecore.Ship.AspNet.Package
         {
             return context.Request.Url != null && 
                    context.Request.Url.PathAndQuery.EndsWith("/services/package/install", StringComparison.InvariantCultureIgnoreCase) &&
-                   context.Request.HttpMethod == "POST" && context.Response.StatusCode != (int)HttpStatusCode.Unauthorized; ;
+                   context.Request.HttpMethod == "POST" && context.Response.StatusCode != (int)HttpStatusCode.Unauthorized;
         }
 
         private static InstallPackage GetRequest(HttpRequestBase request)
         {
             return new InstallPackage
-                       {
-                           Path = request.Form["path"],
-                           DisableIndexing = ParseBoolean(request.Form["DisableIndexing"]),
-                           EnableSecurityInstall = ParseBoolean(request.Form["EnableSecurityInstall"])
-                       };
+            {
+                Path = request.Form["path"],
+                DisableIndexing = ParseBoolean(request.Form["DisableIndexing"]),
+                EnableSecurityInstall = ParseBoolean(request.Form["EnableSecurityInstall"]),
+                AnalyzeOnly = ParseBoolean(request.Form["AnalyzeOnly"])
+            };
         }
 
         private static bool ParseBoolean(string request)

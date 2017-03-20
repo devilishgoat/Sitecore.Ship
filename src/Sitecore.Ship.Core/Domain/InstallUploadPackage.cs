@@ -12,5 +12,7 @@
         public bool DisableManifest { get; set; }
 
         public bool EnableSecurityInstall { get; set; }
+
+        public bool AnalyzeOnly { get; set; }
     }
 }

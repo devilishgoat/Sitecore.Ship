@@ -28,7 +28,7 @@ namespace Sitecore.Ship.Infrastructure.Update
             _manifestRepository = manifestRepository;
         }
 
-        public PackageManifest Execute(string packagePath, bool disableIndexing, bool enableSecurityInstall)
+        public PackageManifest Execute(string packagePath, bool disableIndexing, bool enableSecurityInstall, bool analyzeOnly)
         {
             if (!File.Exists(packagePath)) throw new NotFoundException();
 
@@ -49,6 +49,14 @@ namespace Sitecore.Ship.Infrastructure.Update
                 var manifestReporter = new ManifestReporter(logger);
                 var manifestReport = manifestReporter.ReportPackage(packagePath);
 
+                if (analyzeOnly)
+                {
+                    manifestReport.AnalyzeOnly = true;
+                    var manifest = new PackageManifest();
+                    
+                    manifest.ManifestReport = manifestReport;
+                    return manifest;
+                }
 
                 try
                 {

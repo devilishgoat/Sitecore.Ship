@@ -62,11 +62,12 @@ namespace Sitecore.Ship.AspNet.Package
                         {
                             Path = _tempPackager.GetPackageToInstall(file.InputStream),
                             DisableIndexing = uploadPackage.DisableIndexing,
-                            EnableSecurityInstall = uploadPackage.EnableSecurityInstall
+                            EnableSecurityInstall = uploadPackage.EnableSecurityInstall,
+                            AnalyzeOnly = uploadPackage.AnalyzeOnly
                         };
                         manifest = _repository.AddPackage(package);
 
-                        _installationRecorder.RecordInstall(uploadPackage.PackageId, uploadPackage.Description, DateTime.Now);
+                        if(!uploadPackage.AnalyzeOnly) _installationRecorder.RecordInstall(uploadPackage.PackageId, uploadPackage.Description, DateTime.Now);
 
                     }
                     finally
@@ -74,13 +75,17 @@ namespace Sitecore.Ship.AspNet.Package
                         _tempPackager.Dispose();
                     }
 
-                    foreach (var entry in manifest.Entries)
+                    if (!uploadPackage.AnalyzeOnly)
                     {
-                        if (entry.ID.HasValue)
+                        foreach (var entry in manifest.Entries)
                         {
-                            _publishService.AddToPublishQueue(entry.ID.Value);
+                            if (entry.ID.HasValue)
+                            {
+                                _publishService.AddToPublishQueue(entry.ID.Value);
+                            }
                         }
                     }
+                    
 
                     var json = Json.Encode(new { manifest.ManifestReport });
 
@@ -113,17 +118,16 @@ namespace Sitecore.Ship.AspNet.Package
                     PackageId = request.Form["packageId"],
                     Description = request.Form["description"],
                     DisableIndexing = ParseBoolean(request.Form["DisableIndexing"]),
-                    EnableSecurityInstall = ParseBoolean(request.Form["EnableSecurityInstall"])
-                };
+                    EnableSecurityInstall = ParseBoolean(request.Form["EnableSecurityInstall"]),
+                    AnalyzeOnly = ParseBoolean(request.Form["AnalyzeOnly"])
+            };
         }
 
-        private static bool ParseBoolean(string request)
+        private static bool ParseBoolean(string request, bool defaultValue = false)
         {
             bool result;
-
-            Boolean.TryParse(request, out result);
-
-            return result;
+            if (!Boolean.TryParse(request, out result)) return defaultValue;
+            else return result;
         }
     }
 }
