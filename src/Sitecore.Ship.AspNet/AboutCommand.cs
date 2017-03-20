@@ -17,7 +17,7 @@ namespace Sitecore.Ship.AspNet
                 var version = assemblyName.Version;
 
                 var builder = new StringBuilder();
-                builder.AppendFormat("{0} - version {1}", applicationName, version);
+                builder.AppendFormat("{0} (ASOS) - version {1}", applicationName, version);
 
                 context.Response.ContentType = "text/plain";
                 context.Response.Write(builder.ToString());
