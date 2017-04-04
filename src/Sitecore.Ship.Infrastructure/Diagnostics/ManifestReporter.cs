@@ -91,7 +91,7 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
                 bool parseChildren = false;
 
                 var canDeleteChildren = canDeleteItems && ItemCanDeleteChildren(manifestItem);
-                manifestReportItem.Id = manifestItem.Attributes["Id"].Value;
+                manifestReportItem.Id = NormalizeGuid(manifestItem.Attributes["Id"].Value);
 
                 // check to see if we are adding or updating
                 var scItem = scDataBase.GetItem(new ID(manifestReportItem.Id));
@@ -124,21 +124,33 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             return manifestReportDatabase;
         }
 
+        private string NormalizeGuid(string guid)
+        {
+            guid =  guid.ToLower();
+            if (guid.StartsWith("{")) return guid.Substring(1, guid.Length - 2);
+            else return guid;
+        }
+
+        private string NormalizeGuid(Guid guid)
+        {
+            return guid.ToString().ToLower();
+        }
+
         private void ReportChildTreeDeletions(Data.Items.Item parentItem, List<XmlNode> manifestItems, Sitecore.Data.Database scDataBase, ManifestReportDataBase manifestReportDatabase)
         {
             var items = parentItem.GetChildren();
             items.ForEach(item =>
             {
-                if (!manifestItems.Any(manifestItem => manifestItem.Attributes["Id"].Value == item.ID.Guid.ToString()))
+                if (!manifestItems.Any(manifestItem => NormalizeGuid(manifestItem.Attributes["Id"].Value) == NormalizeGuid(item.ID.Guid)))
                 {
                     manifestReportDatabase.Items.Add(new ManifestReportItem()
                     {
                         FullPath = item.Paths.FullPath,
-                        Id = item.ID.Guid.ToString(),
+                        Id = NormalizeGuid(item.ID.Guid),
                         UpdateType = "DEL"
                     });
 
-                    logger.Info("[DELETE] " + item.Paths.FullPath + " " + item.ID.Guid.ToString());
+                    logger.Info("[DELETE] " + item.Paths.FullPath + " " + NormalizeGuid(item.ID.Guid));
                     // report all decendants as deleted, as we know these are not kept.
                     ReportChildTreeDeletionsAsDeleted(item, manifestItems, scDataBase, manifestReportDatabase);
                 }
@@ -158,11 +170,11 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
                 manifestReportDatabase.Items.Add(new ManifestReportItem()
                 {
                     FullPath = item.Paths.FullPath,
-                    Id = item.ID.Guid.ToString(),
+                    Id = NormalizeGuid(item.ID.Guid),
                     UpdateType = "DEL"
                 });
 
-                logger.Info("[DELETE] " + item.Name + " " + item.ID.Guid.ToString());
+                logger.Info("[DELETE] " + item.Name + " " + NormalizeGuid(item.ID.Guid));
                 ReportChildTreeDeletionsAsDeleted(item, manifestItems, scDataBase, manifestReportDatabase);
             });
         }
