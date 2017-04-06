@@ -14,6 +14,7 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
     public class ManifestReporter
     {
         private readonly log4net.ILog logger;
+        private readonly string manifestFilePath = "addedfiles/_DEV/DeployedItems.xml";
 
         public ManifestReporter(log4net.ILog logger)
         {
@@ -27,21 +28,12 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
                 Databases = new List<ManifestReportDataBase>()
             };
 
-            // get the manifest file path (extracting it from update or zip)
-            string manifestPath = ExtractManifestFile(packageFilePath, manifestReport);
-            if (manifestPath == null) return manifestReport;
+            // get the all the files (extracting it from update or zip)
+            string extractionPath = ExtractPackageFiles(packageFilePath, manifestReport);
+            if (extractionPath == null) return manifestReport;
 
-            var manifestFile = LoadManifestFile(manifestPath, manifestReport);
+            var manifestFile = LoadManifestFile(extractionPath, manifestReport);
             if (manifestFile == null) return manifestReport;
-
-            try
-            { // clean
-                System.IO.File.Delete(manifestPath);
-            }
-            catch
-            {
-            }
-
 
             logger.Info("***************** Begin manifest ****************");
 
@@ -54,29 +46,41 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             // Pull out the manifest items
             var allManifestItems = rootNode.ChildNodes.Cast<XmlNode>().Where(item => item.Name == "DeployedItem");
 
+            
             logger.Info("----- CORE -----");
+            var addedItemsPath = extractionPath + "\\core";
             var itemsList = allManifestItems.Where(item => item.Attributes["Database"].Value == "core");
-            var reportDb = ReportManifestList(itemsList, manifestReport.CanDeleteItems, Sitecore.Data.Database.GetDatabase("core"));
+            var reportDb = ReportManifestList(itemsList, addedItemsPath + "\\", manifestReport.CanDeleteItems, Sitecore.Data.Database.GetDatabase("core"));
             manifestReport.Databases.Add(reportDb);
-
+            
             logger.Info("----- MASTER -----");
+            addedItemsPath = extractionPath + "\\master";
             itemsList = allManifestItems.Where(item => item.Attributes["Database"].Value == "master");
-            reportDb = ReportManifestList(itemsList, manifestReport.CanDeleteItems, Sitecore.Data.Database.GetDatabase("master"));
+            reportDb = ReportManifestList(itemsList, addedItemsPath + "\\", manifestReport.CanDeleteItems, Sitecore.Data.Database.GetDatabase("master"));
             manifestReport.Databases.Add(reportDb);
 
             logger.Info("----- WEB -----");
+            addedItemsPath = extractionPath + "\\web";
             itemsList = allManifestItems.Where(item => item.Attributes["Database"].Value == "web");
-            reportDb = ReportManifestList(itemsList, manifestReport.CanDeleteItems, Sitecore.Data.Database.GetDatabase("web"));
+            reportDb = ReportManifestList(itemsList, addedItemsPath + "\\", manifestReport.CanDeleteItems, Sitecore.Data.Database.GetDatabase("web"));
             manifestReport.Databases.Add(reportDb);
 
             logger.Info("***************** End manifest ****************");
+
+            try
+            {
+                System.IO.Directory.Delete(extractionPath, true);
+            }
+            catch
+            {
+            }
 
             return manifestReport;
         }
 
         
 
-        private ManifestReportDataBase ReportManifestList(IEnumerable<XmlNode> manifestItems, bool canDeleteItems, Sitecore.Data.Database scDataBase)
+        private ManifestReportDataBase ReportManifestList(IEnumerable<XmlNode> manifestItems, string itemsExtractionPath, bool canDeleteItems, Sitecore.Data.Database scDataBase)
         {
             var manifestReportDatabase = new ManifestReportDataBase()
             {
@@ -109,9 +113,20 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
                 }
                 else
                 {
-                    manifestReportItem.FullPath = scItem.Paths.FullPath;
-                    manifestReportItem.UpdateType = "UPD";
-                    if (canDeleteChildren) parseChildren = true;
+                    if (IsItemDeployOnce(manifestItem, itemsExtractionPath))
+                    {
+                        manifestReportItem.FullPath = scItem.Paths.FullPath;
+                        manifestReportItem.UpdateType = "IGNORE";
+                        parseChildren = false;
+                    }
+                    else
+                    {
+                        manifestReportItem.FullPath = scItem.Paths.FullPath;
+                        manifestReportItem.UpdateType = "UPD";
+                        if (canDeleteChildren) parseChildren = true;
+                    }
+
+                    
                 }
             
                 logger.Info(manifestReportItem.ToString());
@@ -122,6 +137,20 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
 
             manifestReportDatabase.Items = manifestReportDatabase.Items.OrderBy(i => i.FullPath).ToList();
             return manifestReportDatabase;
+        }
+
+        private bool IsItemDeployOnce(XmlNode manifestItem, string itemsExtractionPath)
+        {
+            string fileName = manifestItem.Attributes["Name"].Value;
+            fileName = fileName.Substring(0, fileName.Length - ".item".Length);
+            fileName += "_" + manifestItem.Attributes["Id"].Value;
+            fileName = fileName.ToLower();
+
+            var itemFile = new XmlDocument();
+            itemFile.Load(itemsExtractionPath + fileName);
+
+            var node = itemFile.SelectSingleNode("/addItemCommand/collisionbehavior/overwriteExisting");
+            return node.InnerText == "false";
         }
 
         private string NormalizeGuid(string guid)
@@ -206,32 +235,80 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
         {
             using (var reader = new Zip.ZipReader(zipSource))
             {
-                var targetFile = reader.Entries.FirstOrDefault(entry => entry.Name == fileToUnzip);
-                if (targetFile == null)
-                {                    
+                if (!UnzipTargetFile(reader, fileToUnzip, pathToUnzipTo))
+                {
                     logger.Warn(manifestReport.SetError("Could not report on deployment as ship cannot find file (" + fileToUnzip + ") in package at " + zipSource).Error);
                     return false;
-                }
-
-                var buffer = new byte[1024];
-                using (var readStream = targetFile.GetStream())
-                {
-                    using (var writeStream = new System.IO.FileStream(pathToUnzipTo, System.IO.FileMode.Create, System.IO.FileAccess.Write))
-                    {
-                        while (readStream.CanRead)
-                        {
-                            var bytesRead = readStream.Read(buffer, 0, buffer.Length);
-                            if (bytesRead == 0) break;
-                            writeStream.Write(buffer, 0, bytesRead);
-                        }
-                    }
                 }
             }
 
             return true;
         }
+        
+        private bool UnzipPackageFiles(string zipSource, string pathToUnzipTo)
+        {
+            bool result = true;
+            using (var reader = new Zip.ZipReader(zipSource))
+            {
+                // unzip manifest
+                result = UnzipTargetFile(reader, this.manifestFilePath, pathToUnzipTo + "DeployedItems.xml");
 
-        private string ExtractManifestFile(string packageFilePath, ManifestReport manifestReport)
+                //unzip everything in the addeditems folder into a flat list as filenames are unique, but in there db folders
+                result = result && UnzipPackageFilesForDB(reader, pathToUnzipTo, "core");
+                result = result && UnzipPackageFilesForDB(reader, pathToUnzipTo, "master");
+                result = result && UnzipPackageFilesForDB(reader, pathToUnzipTo, "web");
+            }
+            return result;
+        }
+
+        private bool UnzipPackageFilesForDB(Zip.ZipReader reader, string pathToUnzipTo, string dbName)
+        {
+            var entries = reader.Entries.Where(entry => entry.Name.StartsWith("addeditems/"+ dbName));
+            if (!entries.Any()) return true;
+
+            bool result = true;
+            pathToUnzipTo += dbName;
+            System.IO.Directory.CreateDirectory(pathToUnzipTo);
+            pathToUnzipTo += "\\";
+
+            entries.ForEach(entry =>
+            {
+                if (!entry.IsDirectory)
+                {
+                    var targetFileName = entry.Name.Split(new char[] { '/', '\\' }).Last();
+                    result = result && UnzipTargetFile(reader, entry, pathToUnzipTo + targetFileName);
+                }
+            });
+            return result;
+        }
+
+
+        private bool UnzipTargetFile(Zip.ZipReader reader, string fileToUnzip, string pathToUnzipTo)
+        {
+            var targetFile = reader.Entries.FirstOrDefault(entry => entry.Name == fileToUnzip);
+            if (targetFile == null) return false;
+            return UnzipTargetFile(reader, targetFile, pathToUnzipTo);
+        }
+
+        private bool UnzipTargetFile(Zip.ZipReader reader, Zip.ZipEntry fileToUnzip, string pathToUnzipTo)
+        {
+            var buffer = new byte[1024];
+            using (var readStream = fileToUnzip.GetStream())
+            {
+                using (var writeStream = new System.IO.FileStream(pathToUnzipTo, System.IO.FileMode.Create, System.IO.FileAccess.Write))
+                {
+                    while (readStream.CanRead)
+                    {
+                        var bytesRead = readStream.Read(buffer, 0, buffer.Length);
+                        if (bytesRead == 0) break;
+                        writeStream.Write(buffer, 0, bytesRead);
+                    }
+                }
+            }
+            return true;
+        }
+
+        private string ExtractPackageFiles(string packageFilePath, ManifestReport manifestReport)
         {
             if (!System.IO.File.Exists(packageFilePath))
             {
@@ -244,7 +321,7 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
 
             if (packageFilePath.Trim().ToLower().EndsWith(".update"))
             {
-                extractedTempPackagePath = System.IO.Path.GetTempPath() + "\\package." + guid + ".zip";
+                extractedTempPackagePath = System.IO.Path.GetTempPath() + "package." + guid + ".zip";
                 if (!UnzipTargetFile(packageFilePath, "package.zip", extractedTempPackagePath, manifestReport))
                 {
                     logger.Warn(manifestReport.SetError("Could not report on deployment as ship cannot find package zip in the update file at " + packageFilePath).Error);
@@ -253,10 +330,11 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
                 packageFilePath = extractedTempPackagePath;
             }
 
-            var targetPath = System.IO.Path.GetTempPath() + "\\DeployedItems." + guid + ".xml";
-            if (!UnzipTargetFile(packageFilePath, "addedfiles/_DEV/DeployedItems.xml", targetPath, manifestReport))
+            var targetPath = System.IO.Path.GetTempPath() + guid + "\\";
+            if (!System.IO.Directory.Exists(targetPath)) System.IO.Directory.CreateDirectory(targetPath);
+            if (!UnzipPackageFiles(packageFilePath, targetPath))
             {
-                logger.Warn(manifestReport.SetError("Could not report on deployment as ship cannot find the manifest file in " + packageFilePath).Error);
+                logger.Warn(manifestReport.SetError("Could not report on deployment as ship cannot unzip all files in " + packageFilePath).Error);
                 return null;
             }
 
@@ -271,19 +349,20 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
                 }
             }
 
-
             return targetPath;
         }
 
         private XmlDocument LoadManifestFile(string manifestFilePath, ManifestReport manifestReport)
         {
+            manifestFilePath += this.manifestFilePath.Split(new char[] {'/','\\'}).Last();
+
             if (!System.IO.File.Exists(manifestFilePath))
             {
                 logger.Warn(manifestReport.SetError("Could not report on deployment as ship cannot find manifest file at " + manifestFilePath).Error);
                 return null;
             }
 
-            XmlDocument manifestFile = new XmlDocument();
+            var manifestFile = new XmlDocument();
             manifestFile.Load(manifestFilePath);
 
             if (manifestFile.ChildNodes.Count == 0)
