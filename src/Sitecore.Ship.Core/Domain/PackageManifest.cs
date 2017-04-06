@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
+using Newtonsoft.Json;
 using Sitecore.Ship.Core.Reporting;
+using Sitecore.Update.Installer;
 
 namespace Sitecore.Ship.Core.Domain
 {
@@ -10,8 +12,10 @@ namespace Sitecore.Ship.Core.Domain
             Entries = new List<PackageManifestEntry>();
         }
         
-        public List<PackageManifestEntry> Entries { get; private set; } 
+        public List<PackageManifestEntry> Entries { get; private set; }
 
+        
+    
         public ManifestReport ManifestReport { get; set; }
     }
 }

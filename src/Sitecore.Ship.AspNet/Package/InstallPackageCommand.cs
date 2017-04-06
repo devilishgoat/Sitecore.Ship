@@ -57,8 +57,7 @@ namespace Sitecore.Ship.AspNet.Package
                     }
 
                     var json = Json.Encode(new { manifest.ManifestReport });
-
-                    JsonResponse(json, HttpStatusCode.Created, context);
+                    JsonResponse(json, manifest.ManifestReport.ErrorOccured, manifest.ManifestReport.WarningOccured, context);
 
                     context.Response.AddHeader("Location", ShipServiceUrl.PackageLatestVersion);
                 }
@@ -87,7 +86,8 @@ namespace Sitecore.Ship.AspNet.Package
                 Path = request.Form["path"],
                 DisableIndexing = ParseBoolean(request.Form["DisableIndexing"]),
                 EnableSecurityInstall = ParseBoolean(request.Form["EnableSecurityInstall"]),
-                AnalyzeOnly = ParseBoolean(request.Form["AnalyzeOnly"])
+                AnalyzeOnly = ParseBoolean(request.Form["AnalyzeOnly"]),
+                SummeryOnly = ParseBoolean(request.Form["SummeryOnly"])
             };
         }
 

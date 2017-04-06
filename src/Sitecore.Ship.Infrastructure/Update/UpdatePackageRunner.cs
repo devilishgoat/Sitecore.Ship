@@ -28,7 +28,7 @@ namespace Sitecore.Ship.Infrastructure.Update
             _manifestRepository = manifestRepository;
         }
 
-        public PackageManifest Execute(string packagePath, bool disableIndexing, bool enableSecurityInstall, bool analyzeOnly)
+        public PackageManifest Execute(string packagePath, bool disableIndexing, bool enableSecurityInstall, bool analyzeOnly, bool summeryOnly)
         {
             if (!File.Exists(packagePath)) throw new NotFoundException();
 
@@ -91,6 +91,12 @@ namespace Sitecore.Ship.Infrastructure.Update
 
                     var manifest = _manifestRepository.GetManifest(packagePath);
                     manifest.ManifestReport = manifestReport;
+                    BuildSummery(manifest, entries);
+
+                    if (summeryOnly) manifest.ManifestReport.Databases = null;
+
+                   
+
                     return manifest;
                 }
                 catch (PostStepInstallerException exception)
@@ -134,7 +140,14 @@ namespace Sitecore.Ship.Infrastructure.Update
                 }
             }
         }
-        
+
+        private void BuildSummery(PackageManifest manifest, List<ContingencyEntry> entries)
+        {
+            manifest.ManifestReport.SummeryEntries.Clear();
+            manifest.ManifestReport.SummeryEntries.AddRange(entries.Where(entry => entry.Level == ContingencyLevel.Error || entry.Level == ContingencyLevel.Warning));
+        }
+
+
         private PackageInstallationInfo GetInstallationInfo(string packagePath)
         {
             var info = new PackageInstallationInfo
@@ -153,7 +166,7 @@ namespace Sitecore.Ship.Infrastructure.Update
         private void SaveInstallationMessages(List<ContingencyEntry> entries, string historyPath)
         {
             string path = Path.Combine(historyPath, "messages.xml");
-
+            
             FileUtil.EnsureFolder(path);
 
             using (FileStream fileStream = File.Create(path))
