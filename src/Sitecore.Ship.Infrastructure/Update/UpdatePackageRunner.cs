@@ -7,6 +7,7 @@ using Sitecore.SecurityModel;
 using Sitecore.Ship.Core;
 using Sitecore.Ship.Core.Contracts;
 using Sitecore.Ship.Core.Domain;
+using Sitecore.Ship.Infrastructure.Extensions;
 using Sitecore.Update;
 using Sitecore.Update.Installer;
 using Sitecore.Update.Installer.Exceptions;
@@ -15,6 +16,7 @@ using Sitecore.Update.Installer.Utils;
 using Sitecore.Update.Metadata;
 using Sitecore.Update.Utils;
 using Sitecore.Update.Wizard;
+using ILog = log4net.ILog;
 
 namespace Sitecore.Ship.Infrastructure.Update
 {
@@ -25,6 +27,16 @@ namespace Sitecore.Ship.Infrastructure.Update
         public UpdatePackageRunner(IPackageManifestRepository manifestRepository)
         {
             _manifestRepository = manifestRepository;
+        }
+
+        public static List<ContingencyEntry> Install(PackageInstallationInfo info, ILog installationProcessLogger, out string historyPath)
+        {
+            historyPath = (string)null;
+            using (new SecurityDisabler())
+            {
+                bool hasPostAction;
+                return new DiffInstaller(info.Action).InstallPackage(info.Path, info.Mode, info.ProcessingMode, installationProcessLogger, (IList<ContingencyEntry>)new List<ContingencyEntry>(), "rollbackPackage.rlb", out hasPostAction, ref historyPath);
+            }
         }
 
         public PackageManifest Execute(string packagePath, bool disableIndexing, bool enableSecurityInstall)
@@ -46,6 +58,13 @@ namespace Sitecore.Ship.Infrastructure.Update
                 try
                 {
                     entries = UpdateHelper.Install(installationInfo, logger, out historyPath);
+
+                    //using (new SecurityDisabler())
+                    //{
+                    //    bool flag;
+                    //    DiffInstaller installer = new DiffInstaller(installationInfo.Action);
+                    //    entries = installer.InstallPackage(installationInfo.Path, installationInfo.Mode, logger, new List<ContingencyEntry>(), "rollbackPackage.rlb", out flag, ref historyPath);
+                    //}
 
                     string error = string.Empty;
 
@@ -121,16 +140,19 @@ namespace Sitecore.Ship.Infrastructure.Update
         
         private PackageInstallationInfo GetInstallationInfo(string packagePath)
         {
+            if (string.IsNullOrEmpty(packagePath))
+            {
+                throw new Exception("Package is not selected.");
+            }
+
             var info = new PackageInstallationInfo
             {
                 Mode = InstallMode.Install,
                 Action = UpgradeAction.Upgrade,
                 Path = packagePath
             };
-            if (string.IsNullOrEmpty(info.Path))
-            {
-                throw new Exception("Package is not selected.");
-            }
+            
+            info.SetProcessingMode();
             return info;
         }
 
