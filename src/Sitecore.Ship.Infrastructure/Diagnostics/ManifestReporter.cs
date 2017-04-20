@@ -6,19 +6,36 @@ using Sitecore.ContentSearch.Utilities;
 using Sitecore.Data;
 using Sitecore.Ship.Core.Contracts;
 using Sitecore.Ship.Core.Reporting;
+using Sitecore.Ship.Infrastructure.Helpers;
 
 namespace Sitecore.Ship.Infrastructure.Diagnostics
 {
     
 
-    public class ManifestReporter
+    public class ManifestReporter : IDisposable
     {
         private readonly log4net.ILog logger;
         private readonly string manifestFilePath = "addedfiles/_DEV/DeployedItems.xml";
+        private readonly string tempDirectory;
+
+        public string ExtractedTempPackagePath
+        {
+            get; private set;
+        }
+
+        public string SessionTempDirectory
+        {
+            get; private set;
+        }
+
+        
 
         public ManifestReporter(log4net.ILog logger)
         {
             this.logger = logger;
+            tempDirectory = Utilities.SitecoreTempDirectory;
+            ExtractedTempPackagePath = null;
+            SessionTempDirectory = null;
         }
 
         public ManifestReport ReportPackage(string packageFilePath)
@@ -66,14 +83,6 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             manifestReport.Databases.Add(reportDb);
 
             logger.Info("***************** End manifest ****************");
-
-            try
-            {
-                System.IO.Directory.Delete(extractionPath, true);
-            }
-            catch
-            {
-            }
 
             return manifestReport;
         }
@@ -230,43 +239,26 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             }
             return false;
         }
-
-        private bool UnzipTargetFile(string zipSource, string fileToUnzip, string pathToUnzipTo, ManifestReport manifestReport)
-        {
-            using (var reader = new Zip.ZipReader(zipSource))
-            {
-                if (!UnzipTargetFile(reader, fileToUnzip, pathToUnzipTo))
-                {
-                    logger.Warn(manifestReport.SetError("Could not report on deployment as ship cannot find file (" + fileToUnzip + ") in package at " + zipSource).Error);
-                    return false;
-                }
-            }
-
-            return true;
-        }
         
-        private bool UnzipPackageFiles(string zipSource, string pathToUnzipTo)
+        private void UnzipPackageFiles(string zipSource, string pathToUnzipTo)
         {
-            bool result = true;
             using (var reader = new Zip.ZipReader(zipSource))
             {
                 // unzip manifest
-                result = UnzipTargetFile(reader, this.manifestFilePath, pathToUnzipTo + "DeployedItems.xml");
+                Utilities.UnzipTargetFile(reader, this.manifestFilePath, pathToUnzipTo + "DeployedItems.xml");
 
                 //unzip everything in the addeditems folder into a flat list as filenames are unique, but in there db folders
-                result = result && UnzipPackageFilesForDB(reader, pathToUnzipTo, "core");
-                result = result && UnzipPackageFilesForDB(reader, pathToUnzipTo, "master");
-                result = result && UnzipPackageFilesForDB(reader, pathToUnzipTo, "web");
+                UnzipPackageFilesForDB(reader, pathToUnzipTo, "core");
+                UnzipPackageFilesForDB(reader, pathToUnzipTo, "master");
+                UnzipPackageFilesForDB(reader, pathToUnzipTo, "web");
             }
-            return result;
         }
 
-        private bool UnzipPackageFilesForDB(Zip.ZipReader reader, string pathToUnzipTo, string dbName)
+        private void UnzipPackageFilesForDB(Zip.ZipReader reader, string pathToUnzipTo, string dbName)
         {
             var entries = reader.Entries.Where(entry => entry.Name.StartsWith("addeditems/"+ dbName));
-            if (!entries.Any()) return true;
-
-            bool result = true;
+            if (!entries.Any()) return;
+            
             pathToUnzipTo += dbName;
             System.IO.Directory.CreateDirectory(pathToUnzipTo);
             pathToUnzipTo += "\\";
@@ -275,37 +267,24 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             {
                 if (!entry.IsDirectory)
                 {
-                    var targetFileName = entry.Name.Split(new char[] { '/', '\\' }).Last();
-                    result = result && UnzipTargetFile(reader, entry, pathToUnzipTo + targetFileName);
+                    entry.ExtractItem(pathToUnzipTo,false);
                 }
             });
-            return result;
         }
 
-
-        private bool UnzipTargetFile(Zip.ZipReader reader, string fileToUnzip, string pathToUnzipTo)
+        private void CleanSessionTempDirectory()
         {
-            var targetFile = reader.Entries.FirstOrDefault(entry => entry.Name == fileToUnzip);
-            if (targetFile == null) return false;
-            return UnzipTargetFile(reader, targetFile, pathToUnzipTo);
-        }
-
-        private bool UnzipTargetFile(Zip.ZipReader reader, Zip.ZipEntry fileToUnzip, string pathToUnzipTo)
-        {
-            var buffer = new byte[1024];
-            using (var readStream = fileToUnzip.GetStream())
+            if (SessionTempDirectory != null)
             {
-                using (var writeStream = new System.IO.FileStream(pathToUnzipTo, System.IO.FileMode.Create, System.IO.FileAccess.Write))
+                try
                 {
-                    while (readStream.CanRead)
-                    {
-                        var bytesRead = readStream.Read(buffer, 0, buffer.Length);
-                        if (bytesRead == 0) break;
-                        writeStream.Write(buffer, 0, bytesRead);
-                    }
+                    System.IO.Directory.Delete(SessionTempDirectory,true);
                 }
+                catch
+                {
+                }
+                SessionTempDirectory = null;
             }
-            return true;
         }
 
         private string ExtractPackageFiles(string packageFilePath, ManifestReport manifestReport)
@@ -316,40 +295,34 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
                 return null;
             }
 
-            string extractedTempPackagePath=null;
+            if (SessionTempDirectory != null) CleanSessionTempDirectory();
             var guid = Guid.NewGuid();
+            SessionTempDirectory = tempDirectory + guid + "\\";
+            System.IO.Directory.CreateDirectory(SessionTempDirectory);
 
             if (packageFilePath.Trim().ToLower().EndsWith(".update"))
             {
-                extractedTempPackagePath = System.IO.Path.GetTempPath() + "package." + guid + ".zip";
-                if (!UnzipTargetFile(packageFilePath, "package.zip", extractedTempPackagePath, manifestReport))
+                ExtractedTempPackagePath = SessionTempDirectory + "package." + guid + ".zip";
+                if (!Utilities.UnzipTargetFile(packageFilePath, "package.zip", ExtractedTempPackagePath))
                 {
                     logger.Warn(manifestReport.SetError("Could not report on deployment as ship cannot find package zip in the update file at " + packageFilePath).Error);
                     return null;
                 }
-                packageFilePath = extractedTempPackagePath;
+                packageFilePath = ExtractedTempPackagePath;
             }
 
-            var targetPath = System.IO.Path.GetTempPath() + guid + "\\";
-            if (!System.IO.Directory.Exists(targetPath)) System.IO.Directory.CreateDirectory(targetPath);
-            if (!UnzipPackageFiles(packageFilePath, targetPath))
+            try
             {
-                logger.Warn(manifestReport.SetError("Could not report on deployment as ship cannot unzip all files in " + packageFilePath).Error);
+                UnzipPackageFiles(packageFilePath, SessionTempDirectory);
+            }
+            catch (Exception ex)
+            {
+                logger.Error(manifestReport.SetError("Could not report on deployment as ship cannot unzip all files in " + packageFilePath + ". " + ex.Message).Error);
                 return null;
             }
+            
 
-            if (extractedTempPackagePath != null)
-            {
-                try
-                {
-                    System.IO.File.Delete(extractedTempPackagePath);
-                }
-                catch
-                {
-                }
-            }
-
-            return targetPath;
+            return SessionTempDirectory;
         }
 
         private XmlDocument LoadManifestFile(string manifestFilePath, ManifestReport manifestReport)
@@ -372,6 +345,11 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             }
 
             return manifestFile;
+        }
+
+        public void Dispose()
+        {
+            CleanSessionTempDirectory();
         }
 
 

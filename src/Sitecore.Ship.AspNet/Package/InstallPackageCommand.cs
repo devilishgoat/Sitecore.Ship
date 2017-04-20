@@ -87,7 +87,8 @@ namespace Sitecore.Ship.AspNet.Package
                 DisableIndexing = ParseBoolean(request.Form["DisableIndexing"]),
                 EnableSecurityInstall = ParseBoolean(request.Form["EnableSecurityInstall"]),
                 AnalyzeOnly = ParseBoolean(request.Form["AnalyzeOnly"]),
-                SummeryOnly = ParseBoolean(request.Form["SummeryOnly"])
+                SummeryOnly = ParseBoolean(request.Form["SummeryOnly"]),
+                Version = request.Form["Version"]
             };
         }
 
