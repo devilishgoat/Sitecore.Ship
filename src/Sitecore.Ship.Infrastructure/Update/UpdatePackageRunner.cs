@@ -7,6 +7,7 @@ using Sitecore.SecurityModel;
 using Sitecore.Ship.Core;
 using Sitecore.Ship.Core.Contracts;
 using Sitecore.Ship.Core.Domain;
+using Sitecore.Ship.Infrastructure.Diagnostics;
 using Sitecore.Update;
 using Sitecore.Update.Installer;
 using Sitecore.Update.Installer.Exceptions;
@@ -27,7 +28,7 @@ namespace Sitecore.Ship.Infrastructure.Update
             _manifestRepository = manifestRepository;
         }
 
-        public PackageManifest Execute(string packagePath, bool disableIndexing, bool enableSecurityInstall)
+        public PackageManifest Execute(string packagePath, bool disableIndexing, bool enableSecurityInstall, bool analyzeOnly, bool summeryOnly)
         {
             if (!File.Exists(packagePath)) throw new NotFoundException();
 
@@ -43,6 +44,20 @@ namespace Sitecore.Ship.Infrastructure.Update
                 List<ContingencyEntry> entries = null;
 
                 var logger = Sitecore.Diagnostics.LoggerFactory.GetLogger(this); // TODO abstractions
+
+
+                var manifestReporter = new ManifestReporter(logger);
+                var manifestReport = manifestReporter.ReportPackage(packagePath);
+
+                if (analyzeOnly)
+                {
+                    manifestReport.AnalyzeOnly = true;
+                    var manifest = new PackageManifest();
+                    
+                    manifest.ManifestReport = manifestReport;
+                    return manifest;
+                }
+
                 try
                 {
                     entries = UpdateHelper.Install(installationInfo, logger, out historyPath);
@@ -74,8 +89,15 @@ namespace Sitecore.Ship.Infrastructure.Update
 
                     logger.Info("Executing post installation actions finished.");
 
-                    return _manifestRepository.GetManifest(packagePath);
+                    var manifest = _manifestRepository.GetManifest(packagePath);
+                    manifest.ManifestReport = manifestReport;
+                    BuildSummery(manifest, entries);
 
+                    if (summeryOnly) manifest.ManifestReport.Databases = null;
+
+                   
+
+                    return manifest;
                 }
                 catch (PostStepInstallerException exception)
                 {
@@ -118,7 +140,14 @@ namespace Sitecore.Ship.Infrastructure.Update
                 }
             }
         }
-        
+
+        private void BuildSummery(PackageManifest manifest, List<ContingencyEntry> entries)
+        {
+            manifest.ManifestReport.SummeryEntries.Clear();
+            manifest.ManifestReport.SummeryEntries.AddRange(entries.Where(entry => entry.Level == ContingencyLevel.Error || entry.Level == ContingencyLevel.Warning));
+        }
+
+
         private PackageInstallationInfo GetInstallationInfo(string packagePath)
         {
             var info = new PackageInstallationInfo
@@ -137,7 +166,7 @@ namespace Sitecore.Ship.Infrastructure.Update
         private void SaveInstallationMessages(List<ContingencyEntry> entries, string historyPath)
         {
             string path = Path.Combine(historyPath, "messages.xml");
-
+            
             FileUtil.EnsureFolder(path);
 
             using (FileStream fileStream = File.Create(path))

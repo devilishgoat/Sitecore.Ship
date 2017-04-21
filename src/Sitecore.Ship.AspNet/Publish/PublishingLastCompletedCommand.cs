@@ -31,7 +31,6 @@ namespace Sitecore.Ship.AspNet.Publish
                 var date = _publishService.GetLastCompletedRun(completedRequest);
 
                 var json = Json.Encode(new { date });
-
                 JsonResponse(json, HttpStatusCode.Accepted, context);
             }
             else if (Successor != null)

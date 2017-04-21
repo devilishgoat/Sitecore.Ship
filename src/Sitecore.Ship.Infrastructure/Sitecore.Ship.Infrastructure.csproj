@@ -154,11 +154,15 @@
     <Compile Include="..\Common\CommonVersionInfo.cs">
       <Link>Properties\CommonVersionInfo.cs</Link>
     </Compile>
+    <Compile Include="..\Common\GlobalSuppressions.cs">
+      <Link>Properties\GlobalSuppressions.cs</Link>
+    </Compile>
     <Compile Include="Configuration\GenericConfigurationElementCollection.cs" />
     <Compile Include="Configuration\PackageInstallationConfiguration.cs" />
     <Compile Include="Configuration\PackageInstallationConfigurationProvider.cs" />
     <Compile Include="DataAccess\PackageHistoryRepository.cs" />
     <Compile Include="Diagnostics\Logger.cs" />
+    <Compile Include="Diagnostics\ManifestReporter.cs" />
     <Compile Include="Install\PackageManifestReader.cs" />
     <Compile Include="IO\TempPackager.cs" />
     <Compile Include="Update\AccountInstaller.cs" />
