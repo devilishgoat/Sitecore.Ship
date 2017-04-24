@@ -33,7 +33,10 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             if (extractionPath == null) return manifestReport;
 
             var manifestFile = LoadManifestFile(extractionPath, manifestReport);
-            if (manifestFile == null) return manifestReport;
+            if (manifestFile == null)
+            {
+                return manifestReport;
+            }
 
             logger.Info("***************** Begin manifest ****************");
 
@@ -247,14 +250,15 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
         
         private bool UnzipPackageFiles(string zipSource, string pathToUnzipTo)
         {
-            bool result = true;
+            bool result;
             using (var reader = new Zip.ZipReader(zipSource))
             {
-                // unzip manifest
-                result = UnzipTargetFile(reader, this.manifestFilePath, pathToUnzipTo + "DeployedItems.xml");
+                var deployedItemsPath = pathToUnzipTo + "DeployedItems.xml";
+                // unzip manifest. Ignore result as this may not be a TDS package
+                UnzipTargetFile(reader, this.manifestFilePath, deployedItemsPath);
 
                 //unzip everything in the addeditems folder into a flat list as filenames are unique, but in there db folders
-                result = result && UnzipPackageFilesForDB(reader, pathToUnzipTo, "core");
+                result = UnzipPackageFilesForDB(reader, pathToUnzipTo, "core");
                 result = result && UnzipPackageFilesForDB(reader, pathToUnzipTo, "master");
                 result = result && UnzipPackageFilesForDB(reader, pathToUnzipTo, "web");
             }
@@ -319,34 +323,27 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             string extractedTempPackagePath=null;
             var guid = Guid.NewGuid();
 
-            if (packageFilePath.Trim().ToLower().EndsWith(".update"))
+            extractedTempPackagePath = System.IO.Path.GetTempPath() + "package." + guid + ".zip";
+            if (!UnzipTargetFile(packageFilePath, "package.zip", extractedTempPackagePath, manifestReport))
             {
-                extractedTempPackagePath = System.IO.Path.GetTempPath() + "package." + guid + ".zip";
-                if (!UnzipTargetFile(packageFilePath, "package.zip", extractedTempPackagePath, manifestReport))
-                {
-                    logger.Warn(manifestReport.SetError("Could not report on deployment as ship cannot find package zip in the update file at " + packageFilePath).Error);
-                    return null;
-                }
-                packageFilePath = extractedTempPackagePath;
+                logger.Error(manifestReport.SetError("Could not report on deployment as ship cannot find package zip in the update file at " + packageFilePath).Error);
+                return null;
             }
 
             var targetPath = System.IO.Path.GetTempPath() + guid + "\\";
             if (!System.IO.Directory.Exists(targetPath)) System.IO.Directory.CreateDirectory(targetPath);
             if (!UnzipPackageFiles(packageFilePath, targetPath))
             {
-                logger.Warn(manifestReport.SetError("Could not report on deployment as ship cannot unzip all files in " + packageFilePath).Error);
+                logger.Error(manifestReport.SetError("Could not report on deployment as ship cannot unzip all files in " + packageFilePath).Error);
                 return null;
             }
 
-            if (extractedTempPackagePath != null)
+            try
             {
-                try
-                {
-                    System.IO.File.Delete(extractedTempPackagePath);
-                }
-                catch
-                {
-                }
+                System.IO.File.Delete(extractedTempPackagePath);
+            }
+            catch
+            {
             }
 
             return targetPath;
@@ -358,7 +355,7 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
 
             if (!System.IO.File.Exists(manifestFilePath))
             {
-                logger.Warn(manifestReport.SetError("Could not report on deployment as ship cannot find manifest file at " + manifestFilePath).Error);
+                logger.Warn("Could not report on deployment as ship cannot find manifest file at " + manifestFilePath);
                 return null;
             }
 
