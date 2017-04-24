@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-
 using Sitecore.Ship.Core.Contracts;
 using Sitecore.Ship.Core.Domain;
 

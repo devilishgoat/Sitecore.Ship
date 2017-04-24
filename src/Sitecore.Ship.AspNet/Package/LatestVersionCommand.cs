@@ -13,6 +13,8 @@ using Sitecore.Ship.Infrastructure.Web;
 
 namespace Sitecore.Ship.AspNet.Package
 {
+
+   
     public class LatestVersionCommand : CommandHandler
     {
         private readonly IInstallationRecorder _installationRecorder;
@@ -26,10 +28,21 @@ namespace Sitecore.Ship.AspNet.Package
         {           
         }
 
+       
+
         public override void HandleRequest(HttpContextBase context)
         {
             if (CanHandle(context))
             {
+                var packageName = context.Request["name"];
+                if (!string.IsNullOrWhiteSpace(packageName))
+                {
+                    var versionText = UpdatePackageVersionRetriver.GetUpdatePackageVersion(packageName);
+                    var json = Json.Encode(new { versionText });
+                    JsonResponse(json, HttpStatusCode.OK, context);
+                    return;
+                }
+
                 try
                 {
                     var installedPackage = _installationRecorder.GetLatestPackage();
@@ -59,7 +72,7 @@ namespace Sitecore.Ship.AspNet.Package
         private static bool CanHandle(HttpContextBase context)
         {
             return context.Request.Url != null &&
-                   context.Request.Url.PathAndQuery.EndsWith(ShipServiceUrl.PackageLatestVersion, StringComparison.InvariantCultureIgnoreCase) && context.Response.StatusCode != (int)HttpStatusCode.Unauthorized; ;
+                   context.Request.Url.AbsolutePath.EndsWith(ShipServiceUrl.PackageLatestVersion, StringComparison.InvariantCultureIgnoreCase) && context.Response.StatusCode != (int)HttpStatusCode.Unauthorized; ;
         }
     }
 }

@@ -2,12 +2,14 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Sitecore.ContentSearch.Utilities;
 using Sitecore.IO;
 using Sitecore.SecurityModel;
 using Sitecore.Ship.Core;
 using Sitecore.Ship.Core.Contracts;
 using Sitecore.Ship.Core.Domain;
 using Sitecore.Ship.Infrastructure.Diagnostics;
+using Sitecore.Ship.Infrastructure.Helpers;
 using Sitecore.Update;
 using Sitecore.Update.Installer;
 using Sitecore.Update.Installer.Exceptions;
@@ -28,7 +30,7 @@ namespace Sitecore.Ship.Infrastructure.Update
             _manifestRepository = manifestRepository;
         }
 
-        public PackageManifest Execute(string packagePath, bool disableIndexing, bool enableSecurityInstall, bool analyzeOnly, bool summeryOnly)
+        public PackageManifest Execute(string packagePath, bool disableIndexing, bool enableSecurityInstall, bool analyzeOnly, bool summeryOnly, string version)
         {
             if (!File.Exists(packagePath)) throw new NotFoundException();
 
@@ -58,6 +60,26 @@ namespace Sitecore.Ship.Infrastructure.Update
                     return manifest;
                 }
 
+                if (!string.IsNullOrWhiteSpace(version))
+                {
+                    // extract everything into a temp folder
+                    // we use the package.zip that was already extracted by the manifest reporter
+                    var fullExtractionPath = manifestReporter.SessionTempDirectory + "v\\";
+                    Directory.CreateDirectory(fullExtractionPath);
+                    Utilities.ExtractAll(manifestReporter.ExtractedTempPackagePath, fullExtractionPath);
+
+                    // Now we need to set the version file
+                    if(File.Exists(fullExtractionPath+ "metadata\\sc_version.txt")) File.Delete(fullExtractionPath + "metadata\\sc_version.txt");
+                    File.WriteAllText(fullExtractionPath + "metadata\\sc_version.txt", version);
+
+                    // Now zip it all back up again
+                    Utilities.ZipAll(fullExtractionPath, manifestReporter.SessionTempDirectory + "package.zip");
+
+                    // and now replace the ziped update file
+                    System.IO.File.Delete(packagePath);
+                    Utilities.ZipFile(manifestReporter.SessionTempDirectory + "package.zip", packagePath);
+                }
+
                 try
                 {
                     entries = UpdateHelper.Install(installationInfo, logger, out historyPath);
@@ -83,6 +105,7 @@ namespace Sitecore.Ship.Infrastructure.Update
                     }
                     else
                     {
+                        if(!manifestReport.ErrorOccured) manifestReport.SetError(error);
                         logger.Info("Post installation actions error.");
                         logger.Error(error);
                     }
@@ -111,6 +134,8 @@ namespace Sitecore.Ship.Infrastructure.Update
                     {
                         Sitecore.Configuration.Settings.Indexing.Enabled = true;
                     }
+
+                    manifestReporter.Dispose();
 
                     try
                     {

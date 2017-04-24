@@ -64,7 +64,8 @@ namespace Sitecore.Ship.AspNet.Package
                             DisableIndexing = uploadPackage.DisableIndexing,
                             EnableSecurityInstall = uploadPackage.EnableSecurityInstall,
                             AnalyzeOnly = uploadPackage.AnalyzeOnly,
-                            SummeryOnly = uploadPackage.SummeryOnly
+                            SummeryOnly = uploadPackage.SummeryOnly,
+                            Version = uploadPackage.Version
                         };
                         manifest = _repository.AddPackage(package);
 
@@ -121,6 +122,7 @@ namespace Sitecore.Ship.AspNet.Package
                     EnableSecurityInstall = ParseBoolean(request.Form["EnableSecurityInstall"]),
                     AnalyzeOnly = ParseBoolean(request.Form["AnalyzeOnly"]),
                     SummeryOnly = ParseBoolean(request.Form["SummeryOnly"]),
+                    Version = request.Form["Version"]
             };
         }
 
