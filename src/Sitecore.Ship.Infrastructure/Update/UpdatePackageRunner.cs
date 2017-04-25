@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Alienlab.Zip;
 using Sitecore.ContentSearch.Utilities;
 using Sitecore.IO;
 using Sitecore.SecurityModel;
@@ -62,22 +63,20 @@ namespace Sitecore.Ship.Infrastructure.Update
 
                 if (!string.IsNullOrWhiteSpace(version))
                 {
-                    // extract everything into a temp folder
-                    // we use the package.zip that was already extracted by the manifest reporter
-                    var fullExtractionPath = manifestReporter.SessionTempDirectory + "v\\";
-                    Directory.CreateDirectory(fullExtractionPath);
-                    Utilities.ExtractAll(manifestReporter.ExtractedTempPackagePath, fullExtractionPath);
+                    var targetPath = manifestReporter.SessionTempDirectory + "package.zip";
+                    // open reader
+                    using (var zipFile = new ZipFile(manifestReporter.ExtractedTempPackagePath))
+                    {
+                        var existingVersionEntry = zipFile.Entries.FirstOrDefault(entry => entry.FileName.ToLower().EndsWith("sc_version.txt"));
+                        if(existingVersionEntry!=null) zipFile.RemoveEntry(existingVersionEntry);
 
-                    // Now we need to set the version file
-                    if(File.Exists(fullExtractionPath+ "metadata\\sc_version.txt")) File.Delete(fullExtractionPath + "metadata\\sc_version.txt");
-                    File.WriteAllText(fullExtractionPath + "metadata\\sc_version.txt", version);
-
-                    // Now zip it all back up again
-                    Utilities.ZipAll(fullExtractionPath, manifestReporter.SessionTempDirectory + "package.zip");
-
+                        zipFile.AddEntry("metadata\\sc_version.txt", version);
+                        zipFile.Save(targetPath); 
+                    }
+                    
                     // and now replace the ziped update file
                     System.IO.File.Delete(packagePath);
-                    Utilities.ZipFile(manifestReporter.SessionTempDirectory + "package.zip", packagePath);
+                    Utilities.ZipFile(targetPath, packagePath);
                 }
 
                 try
