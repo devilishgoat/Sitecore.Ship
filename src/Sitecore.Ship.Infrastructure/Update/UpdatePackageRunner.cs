@@ -2,12 +2,15 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Alienlab.Zip;
+using Sitecore.ContentSearch.Utilities;
 using Sitecore.IO;
 using Sitecore.SecurityModel;
 using Sitecore.Ship.Core;
 using Sitecore.Ship.Core.Contracts;
 using Sitecore.Ship.Core.Domain;
 using Sitecore.Ship.Infrastructure.Diagnostics;
+using Sitecore.Ship.Infrastructure.Helpers;
 using Sitecore.Update;
 using Sitecore.Update.Installer;
 using Sitecore.Update.Installer.Exceptions;
@@ -28,7 +31,7 @@ namespace Sitecore.Ship.Infrastructure.Update
             _manifestRepository = manifestRepository;
         }
 
-        public PackageManifest Execute(string packagePath, bool disableIndexing, bool enableSecurityInstall, bool analyzeOnly, bool summeryOnly)
+        public PackageManifest Execute(string packagePath, bool disableIndexing, bool enableSecurityInstall, bool analyzeOnly, bool summeryOnly, string version)
         {
             if (!File.Exists(packagePath)) throw new NotFoundException();
 
@@ -58,6 +61,24 @@ namespace Sitecore.Ship.Infrastructure.Update
                     return manifest;
                 }
 
+                if (!string.IsNullOrWhiteSpace(version))
+                {
+                    var targetPath = manifestReporter.SessionTempDirectory + "package.zip";
+                    // open reader
+                    using (var zipFile = new ZipFile(manifestReporter.ExtractedTempPackagePath))
+                    {
+                        var existingVersionEntry = zipFile.Entries.FirstOrDefault(entry => entry.FileName.ToLower().EndsWith("sc_version.txt"));
+                        if(existingVersionEntry!=null) zipFile.RemoveEntry(existingVersionEntry);
+
+                        zipFile.AddEntry("metadata\\sc_version.txt", version);
+                        zipFile.Save(targetPath); 
+                    }
+                    
+                    // and now replace the ziped update file
+                    System.IO.File.Delete(packagePath);
+                    Utilities.ZipFile(targetPath, packagePath);
+                }
+
                 try
                 {
                     entries = UpdateHelper.Install(installationInfo, logger, out historyPath);
@@ -83,6 +104,7 @@ namespace Sitecore.Ship.Infrastructure.Update
                     }
                     else
                     {
+                        if(!manifestReport.ErrorOccured) manifestReport.SetError(error);
                         logger.Info("Post installation actions error.");
                         logger.Error(error);
                     }
@@ -111,6 +133,8 @@ namespace Sitecore.Ship.Infrastructure.Update
                     {
                         Sitecore.Configuration.Settings.Indexing.Enabled = true;
                     }
+
+                    manifestReporter.Dispose();
 
                     try
                     {
