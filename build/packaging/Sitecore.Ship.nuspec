@@ -25,6 +25,7 @@
     <file src="..\..\artifacts\Build\lib\net45\Sitecore.Ship.Core.pdb" target="lib\net45" />
     <file src="..\..\artifacts\Build\lib\net45\Sitecore.Ship.Infrastructure.dll" target="lib\net45" />
     <file src="..\..\artifacts\Build\lib\net45\Sitecore.Ship.Infrastructure.pdb" target="lib\net45" />
+    <file src="..\..\src\Sitecore.Ship.AspNet\bin\Release\Alienlab.Zip.Reduced.dll" target="lib\net45" />
     
     <file src="..\..\src\Sitecore.Ship\content\**\*" target="content" />
   </files>
