@@ -16,6 +16,7 @@
     <requireLicenseAcceptance>true</requireLicenseAcceptance>
     <dependencies>
       <dependency id="Nancy.Hosting.Aspnet" version="0.17.1" />
+      <dependency id="Alienlab.Zip.Reduced" version="1.9.1.8" />
     </dependencies>
   </metadata>
   <files>
@@ -25,7 +26,6 @@
     <file src="..\..\artifacts\Build\lib\net45\Sitecore.Ship.Core.pdb" target="lib\net45" />
     <file src="..\..\artifacts\Build\lib\net45\Sitecore.Ship.Infrastructure.dll" target="lib\net45" />
     <file src="..\..\artifacts\Build\lib\net45\Sitecore.Ship.Infrastructure.pdb" target="lib\net45" />
-    <file src="..\..\src\Sitecore.Ship.AspNet\bin\Release\Alienlab.Zip.Reduced.dll" target="lib\net45" />
     
     <file src="..\..\src\Sitecore.Ship\content\**\*" target="content" />
   </files>
