@@ -32,6 +32,19 @@ namespace Sitecore.Ship.AspNet
             context.Response.Write(json);
         }
 
+        protected void TextResponse(string text, HttpStatusCode statusCode, HttpContextBase context)
+        {
+            TextResponse(text, (int)statusCode, context);
+        }
+
+        protected void TextResponse(string text, int statusCode, HttpContextBase context)
+        {
+            context.Response.StatusCode = statusCode;
+            context.Response.Clear();
+            context.Response.ContentType = "text/plain; charset=utf-8";
+            context.Response.Write(text);
+        }
+
         protected int GetHttpStatusCode(bool errorOccured, bool warningOccured)
         {
             if (errorOccured) return (int) 299; // Custom code to indicate error and still return json

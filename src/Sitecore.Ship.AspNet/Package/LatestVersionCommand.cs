@@ -38,8 +38,7 @@ namespace Sitecore.Ship.AspNet.Package
                 if (!string.IsNullOrWhiteSpace(packageName))
                 {
                     var versionText = UpdatePackageVersionRetriver.GetUpdatePackageVersion(packageName);
-                    var json = Json.Encode(new { versionText });
-                    JsonResponse(json, HttpStatusCode.OK, context);
+                    TextResponse(versionText, HttpStatusCode.OK, context);
                     return;
                 }
 
