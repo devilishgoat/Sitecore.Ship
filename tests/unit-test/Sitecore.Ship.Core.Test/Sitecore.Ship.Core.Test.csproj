@@ -87,7 +87,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CouplingTests.cs" />
     <Compile Include="HttpRequestAuthoriser\Logging\HttpRequestAuthoriserLoggingBehaviour.cs" />
     <Compile Include="HttpRequestAuthoriser\Logging\HttpRequestAuthoriserLoggingDisabledBehaviour.cs" />
     <Compile Include="HttpRequestAuthoriser\Logging\HttpRequestAuthoriserLoggingRemoteAccessBehaviour.cs" />
