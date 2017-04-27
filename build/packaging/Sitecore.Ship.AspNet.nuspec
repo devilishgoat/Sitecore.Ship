@@ -14,13 +14,14 @@
     <language>en-GB</language>
     <licenseUrl>http://opensource.org/licenses/MIT</licenseUrl>
     <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <dependencies>
+      <dependency id="Alienlab.Zip.Reduced" version="1.9.1.8" />
+    </dependencies>
   </metadata>
   <files>
     <file src="..\..\src\Sitecore.Ship.AspNet\bin\Release\Sitecore.Ship.AspNet.dll" target="lib\net45" />
     <file src="..\..\src\Sitecore.Ship.Core\bin\Release\Sitecore.Ship.Core.dll" target="lib\net45" />
     <file src="..\..\src\Sitecore.Ship.Infrastructure\bin\Release\Sitecore.Ship.Infrastructure.dll" target="lib\net45" />
-    <file src="..\..\src\Sitecore.Ship.AspNet\bin\Release\Alienlab.Zip.Reduced.dll" target="lib\net45" />
-    
     <file src="..\..\src\Sitecore.Ship.AspNet\content\**\*" target="content" />
   </files>
 </package>

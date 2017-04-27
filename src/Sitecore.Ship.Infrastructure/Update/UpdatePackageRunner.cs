@@ -75,7 +75,7 @@ namespace Sitecore.Ship.Infrastructure.Update
                     }
                     
                     // and now replace the ziped update file
-                    System.IO.File.Delete(packagePath);
+                    System.IO.File.Delete(packagePath); 
                     Utilities.ZipFile(targetPath, packagePath);
                 }
 
