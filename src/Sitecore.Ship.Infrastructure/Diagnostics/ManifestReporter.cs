@@ -156,7 +156,7 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             string fileName = manifestItem.Attributes["Name"].Value;
             fileName = fileName.Substring(0, fileName.Length - ".item".Length);
             fileName += "_" + manifestItem.Attributes["Id"].Value;
-            fileName = fileName.ToLower();
+            fileName = fileName.ToLower().Replace("%24", "$");
 
             var itemFile = new XmlDocument();
             itemFile.Load(itemsExtractionPath + fileName);
