@@ -158,21 +158,12 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
             fileName += "_" + manifestItem.Attributes["Id"].Value;
             fileName = fileName.ToLower().Replace("%24", "$");
 
-            if (System.IO.File.Exists(itemsExtractionPath + fileName))
-            {
-                var itemFile = new XmlDocument();
-                itemFile.Load(itemsExtractionPath + fileName);
+            var itemFile = new XmlDocument();
+            itemFile.Load(itemsExtractionPath + fileName);
 
-                var node = itemFile.SelectSingleNode("/addItemCommand/collisionbehavior/overwriteExisting");
-                return node.InnerText == "false";
-            }
-            else
-            {
-                logger.Warn("Failed to find file " + itemsExtractionPath + fileName + ". Is possilbe alias.");
-                return false;
-            }
+            var node = itemFile.SelectSingleNode("/addItemCommand/collisionbehavior/overwriteExisting");
+            return node.InnerText == "false";
         }
-    
 
         private string NormalizeGuid(string guid)
         {
