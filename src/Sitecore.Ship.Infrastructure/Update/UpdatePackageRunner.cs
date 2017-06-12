@@ -10,6 +10,7 @@ using Sitecore.Ship.Core;
 using Sitecore.Ship.Core.Contracts;
 using Sitecore.Ship.Core.Domain;
 using Sitecore.Ship.Infrastructure.Diagnostics;
+using Sitecore.Ship.Infrastructure.Extensions;
 using Sitecore.Ship.Infrastructure.Helpers;
 using Sitecore.Update;
 using Sitecore.Update.Installer;
@@ -184,6 +185,8 @@ namespace Sitecore.Ship.Infrastructure.Update
             {
                 throw new Exception("Package is not selected.");
             }
+
+            info.SetProcessingMode();
             return info;
         }
 
