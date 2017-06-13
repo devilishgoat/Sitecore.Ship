@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Xml;
 using Sitecore.ContentSearch.Utilities;
@@ -153,22 +154,24 @@ namespace Sitecore.Ship.Infrastructure.Diagnostics
 
         private bool IsItemDeployOnce(XmlNode manifestItem, string itemsExtractionPath)
         {
-            string fileName = manifestItem.Attributes["Name"].Value;
+           /* string fileName = manifestItem.Attributes["Name"].Value;
             fileName = fileName.Substring(0, fileName.Length - ".item".Length);
             fileName += "_" + manifestItem.Attributes["Id"].Value;
-            fileName = fileName.ToLower().Replace("%24", "$");
+            fileName = fileName.ToLower().Replace("%24", "$");*/
 
-            if (System.IO.File.Exists(itemsExtractionPath + fileName))
+            var fileName = Directory.GetFiles(itemsExtractionPath, "*_" + manifestItem.Attributes["Id"].Value).FirstOrDefault();
+
+            if (fileName!=null && System.IO.File.Exists(fileName))
             {
                 var itemFile = new XmlDocument();
-                itemFile.Load(itemsExtractionPath + fileName);
+                itemFile.Load(fileName);
 
                 var node = itemFile.SelectSingleNode("/addItemCommand/collisionbehavior/overwriteExisting");
                 return node.InnerText == "false";
             }
             else
             {
-                logger.Warn("Failed to find file " + itemsExtractionPath + fileName + ". Is possilbe alias.");
+                logger.Warn("Failed to find file " + manifestItem.Attributes["Id"].Value);
                 return false;
             }
         }

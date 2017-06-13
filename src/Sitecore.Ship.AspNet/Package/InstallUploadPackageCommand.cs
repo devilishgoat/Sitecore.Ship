@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Configuration;
 using System.Net;
 using System.Web;
+using System.Web.Configuration;
 using System.Web.Helpers;
 
 using Sitecore.Ship.Core;
@@ -87,7 +89,6 @@ namespace Sitecore.Ship.AspNet.Package
                             }
                         }
                     }
-                    
 
                     var json = Json.Encode(new { manifest.ManifestReport });
                     JsonResponse(json, manifest.ManifestReport.ErrorOccured, manifest.ManifestReport.WarningOccured, context);
@@ -104,6 +105,8 @@ namespace Sitecore.Ship.AspNet.Package
                 Successor.HandleRequest(context);
             }
         }
+
+ 
 
         private static bool CanHandle(HttpContextBase context)
         {

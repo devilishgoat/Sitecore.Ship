@@ -22,8 +22,26 @@ namespace Sitecore.Ship.Core.Reporting
         [JsonProperty(Order = 3)]
         public bool CanDeleteItems { get; set; }
 
-        [JsonProperty(Order = 4)]
+        [JsonIgnore]
         public List<ContingencyEntry> SummeryEntries { get; private set; }
+
+
+        [JsonProperty(Order = 4)]
+        public List<NoticeEntry> NoticeEntries
+        {
+            get
+            {
+                if (noticeEntries == null || noticeEntries.Count != SummeryEntries.Count)
+                {
+                    noticeEntries = new List<NoticeEntry>();
+                    SummeryEntries.ForEach(sourceEntry => noticeEntries.Add(new NoticeEntry(sourceEntry)));
+                }
+                return noticeEntries;
+            }
+        }
+
+        private List<NoticeEntry> noticeEntries = null;
+
 
         [JsonProperty(Order = 5)]
         public List<ManifestReportDataBase> Databases { get; set; }
@@ -49,6 +67,22 @@ namespace Sitecore.Ship.Core.Reporting
         {
             this.Error = errorMsg;
             return this;
+        }
+    }
+
+    public class NoticeEntry
+    {
+        public string Level { get; set; }
+        public string Behaviour { get; set; }
+        public string Database { get; set; }
+        public string Description { get; set; }
+
+        public NoticeEntry(ContingencyEntry sourceEntry)
+        {
+            this.Level = sourceEntry.Level.ToString();
+            this.Behaviour = sourceEntry.Behavior.ToString();
+            this.Database = sourceEntry.Database;
+            this.Description = sourceEntry.LongDescription;
         }
     }
 }
