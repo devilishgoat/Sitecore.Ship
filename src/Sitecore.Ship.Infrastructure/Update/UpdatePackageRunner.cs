@@ -37,10 +37,7 @@ namespace Sitecore.Ship.Infrastructure.Update
 
             using (new ShutdownGuard())
             {
-                if (disableIndexing)
-                {
-                    Sitecore.Configuration.Settings.Indexing.Enabled = false;
-                }
+               
 
                 var installationInfo = GetInstallationInfo(packagePath);
                 string historyPath = null;
@@ -129,10 +126,7 @@ namespace Sitecore.Ship.Infrastructure.Update
                 }
                 finally
                 {
-                    if (disableIndexing)
-                    {
-                        Sitecore.Configuration.Settings.Indexing.Enabled = true;
-                    }
+                   
 
                     manifestReporter.Dispose();
 
